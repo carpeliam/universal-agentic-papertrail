@@ -4,13 +4,17 @@
   "description": "can AI truly take over the universe? and can it improve at doing so?",
   "type": "module",
   "scripts": {
+    "start": "tsx src/main.ts",
     "test": "vitest --run"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.21.0",
     "vitest": "^4.1.5"
   },
   "dependencies": {
-    "paperclips-remake": "github:carpeliam/paperclips"
+    "paperclips-remake": "github:carpeliam/paperclips",
+    "ws": "^8.20.0"
   }
 }

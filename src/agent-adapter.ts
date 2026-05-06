@@ -1,4 +1,4 @@
-import { getWirePurchaseAmount, type GameAction, type GameState } from "paperclips-remake"
+import { getStallState, getWirePurchaseAmount, type GameAction, type GameState } from "paperclips-remake"
 import type { AgentAction } from "./types"
 
 type AgentState = Omit<GameState, 'version' | 'paused' | 'prestige' | 'wirePurchased' | 'lastTickProduction' | 'lastTickSales' | 'lastTickRevenue' | 'lastAction' | 'earth' | 'space' | 'compute' | 'investment' | 'strategy'>
@@ -57,4 +57,9 @@ export function toGameAction(action: AgentAction, state: GameState): GameAction 
     default:
       return action as GameAction
   }
+}
+
+export function isGameOver(state: GameState) {
+  const remainingMatter = Math.max(0, state.space.totalMatter - state.space.foundMatter)
+  return remainingMatter == 0 || getStallState(state).stalled
 }

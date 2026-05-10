@@ -12,11 +12,11 @@ describe('toAgentState', () => {
     expect(agentState).not.toHaveProperty('paused')
     expect(agentState).not.toHaveProperty('prestige')
     expect(agentState).not.toHaveProperty('wirePurchased')
-    expect(agentState).not.toHaveProperty('lastTickProduction')
     expect(agentState).not.toHaveProperty('lastTickSales')
     expect(agentState).not.toHaveProperty('lastTickRevenue')
     expect(agentState).not.toHaveProperty('lastAction')
     expect(agentState).not.toHaveProperty('earth')
+    expect(agentState).not.toHaveProperty('phase')
   })
 
   it('only exposes unlockable subsystems when they are unlocked', () => {
@@ -435,13 +435,14 @@ describe('toGameActions', () => {
     expect(gameActions).toContainEqual({ type: 'buyWire', amount: 1 })
   })
 
-  it('strips description from completeProject', () => {
+  it('strips description and cost from completeProject', () => {
     const initialState = createInitialGameState()
     const gameActions = toGameActions({
       type: 'completeProject',
       projectId: 'project1',
       title: 'Improved AutoClippers',
       description: 'Upgrade AutoClippers with a 25% boost.',
+      cost: { amount: 750, unit: 'ops' },
     }, initialState)
     expect(gameActions).toContainEqual({ type: 'completeProject', projectId: 'project1' })
   })

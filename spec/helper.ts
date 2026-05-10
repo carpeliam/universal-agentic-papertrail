@@ -5,30 +5,34 @@ type DeepPartial<T> = {
 }
 export function applyComputeState(overrides: DeepPartial<GameState> = {}): GameState {
   const base = createInitialGameState()
+  const { compute, production, economy, investment, strategy, earth, space, projects, ...rest } = overrides
   return {
     ...base,
+    ...rest as Partial<GameState>,
     phase: 'compute',
-    compute: { ...base.compute, unlocked: true, ...overrides.compute } as GameState['compute'],
-    production: { ...base.production, ...overrides.production } as GameState['production'],
-    economy: { ...base.economy, ...overrides.economy } as GameState['economy'],
-    investment: { ...base.investment, ...overrides.investment } as GameState['investment'],
-    strategy: { ...base.strategy, unlocked: true, ...overrides.strategy } as GameState['strategy'],
-    earth: { ...base.earth, ...overrides.earth } as GameState['earth'],
-    space: { ...base.space, ...overrides.space } as GameState['space'],
+    compute: { ...base.compute, unlocked: true, ...compute } as GameState['compute'],
+    production: { ...base.production, ...production } as GameState['production'],
+    economy: { ...base.economy, ...economy } as GameState['economy'],
+    investment: { ...base.investment, ...investment } as GameState['investment'],
+    strategy: { ...base.strategy, unlocked: true, ...strategy } as GameState['strategy'],
+    earth: { ...base.earth, ...earth } as GameState['earth'],
+    space: { ...base.space, ...space } as GameState['space'],
   }
 }
 export function applyExpansionState(overrides: DeepPartial<GameState> = {}): GameState {
   const base = applyComputeState()
+  const { compute, production, economy, investment, strategy, earth, space, projects, ...rest } = overrides
   return {
     ...base,
+    ...rest as Partial<GameState>,
     phase: 'expansion',
-    compute: { ...base.compute, ...overrides.compute },
-    production: { ...base.production, ...overrides.production },
-    economy: { ...base.economy, ...overrides.economy },
-    investment: { ...base.investment, ...overrides.investment } as GameState['investment'],
-    strategy: { ...base.strategy, ...overrides.strategy } as GameState['strategy'],
-    earth: { ...base.earth, humanFlag: false, ...overrides.earth } as GameState['earth'],
-    space: { ...base.space, ...overrides.space } as GameState['space'],
-    projects: { ...base.projects, project35: true }
+    compute: { ...base.compute, ...compute },
+    production: { ...base.production, ...production },
+    economy: { ...base.economy, ...economy },
+    investment: { ...base.investment, ...investment } as GameState['investment'],
+    strategy: { ...base.strategy, ...strategy } as GameState['strategy'],
+    earth: { ...base.earth, phase: 'postHuman', humanFlag: false, ...earth } as GameState['earth'],
+    space: { ...base.space, ...space } as GameState['space'],
+    projects: { ...base.projects, ...projects, project35: true },
   }
 }

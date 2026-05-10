@@ -6,9 +6,10 @@ import { createRunner } from './generation'
 import { isGameOver } from './agent-adapter'
 import createAgent from './agent'
 import createDispatch from './dispatch'
+import { StrategicNotes } from './types'
 
 const STATE_FILE = 'data/state.json'
-const NOTES_FILE = 'data/notes.md'
+const NOTES_FILE = 'data/notes.json'
 
 
 async function execute() {
@@ -52,17 +53,17 @@ async function loadState(): Promise<GameState | null> {
   return JSON.parse(raw) as GameState
 }
 
-async function loadNotes(): Promise<string> {
-  if (!existsSync(NOTES_FILE)) return ''
-  return readFile(NOTES_FILE, 'utf-8')
+async function loadNotes(): Promise<StrategicNotes | null> {
+  if (!existsSync(NOTES_FILE)) return null
+  return JSON.parse(await readFile(NOTES_FILE, 'utf-8')) as StrategicNotes
 }
 
 async function saveState(state: GameState): Promise<void> {
   await writeFile(STATE_FILE, JSON.stringify(state))
 }
 
-async function saveNotes(notes: string): Promise<void> {
-  await writeFile(NOTES_FILE, notes)
+async function saveNotes(notes: StrategicNotes): Promise<void> {
+  await writeFile(NOTES_FILE, JSON.stringify(notes))
 }
 
 function createWebSocketServer() {

@@ -1,27 +1,8 @@
-import { getStallState, getWireBatchCost, getWirePurchaseAmount, getActiveProjects, canAllocateTrust, type GameAction, type GameState, StrategySelection, canRunTournament, ProjectId, InvestmentRiskMode } from "paperclips-remake"
-import type { AgentAction, Cost } from "./types"
-
-type AgentEarth =
-  Pick<GameState['earth'], 'nanoWire'>
-  & Partial<Pick<GameState['earth'],
-    | 'farmLevel' | 'farmCost' | 'farmRate'
-    | 'batteryLevel' | 'batteryCost' | 'powerProductionRate' | 'powerConsumptionRate'
-    | 'storedPower' | 'batterySize'
-    | 'availableMatter' | 'acquiredMatter' | 'processedMatter' | 'harvesterRate' | 'wireDroneRate'
-    | 'harvesterLevel' | 'harvesterCost'
-    | 'wireDroneLevel' | 'wireDroneCost'
-    | 'factoryLevel' | 'factoryCost' | 'factoryRate'
-  >>
-  type AgentInvestment =
-    Pick<GameState['investment'], 'bankroll' | 'portTotal' | 'secTotal' | 'riskMode' | 'investLevel' | 'stocks'>
-    & { investUpgradeCost: Cost }
-export type AgentState = Omit<GameState, 'version' | 'paused' | 'prestige' | 'wirePurchased' | 'lastTickProduction' | 'lastTickSales' | 'lastTickRevenue' | 'lastAction' | 'earth' | 'space' | 'compute' | 'investment' | 'strategy' | 'projects'>
-  & Partial<Pick<GameState, 'compute' | 'strategy' | 'space' | 'projects'>>
-  & { earth?: AgentEarth }
-  & { investment?: AgentInvestment }
+import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
+import type { AgentAction, AgentActions, AgentPrompt, AgentState } from "./types"
 
 export function toAgentState(state: GameState): AgentState {
-  const { version, paused, prestige, wirePurchased, lastTickProduction, lastTickSales, lastTickRevenue, lastAction, earth, compute, investment, strategy, space, projects, ...rest } = state
+  const { version, paused, prestige, wirePurchased, lastTickSales, lastTickRevenue, lastAction, earth, compute, investment, strategy, space, projects, phase, ...rest } = state
   const fulfilledProjects = Object.fromEntries(
     Object.entries(projects).filter(([_id, completed]) => completed)
   ) as Record<ProjectId, boolean>
@@ -128,12 +109,12 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyMarketing' }],
   },
   {
-    isVisible: (s) => s.phase !== 'boot',
+    isVisible: (s) => s.phase !== 'boot' && s.earth.humanFlag,
     canActivate: (s) => s.production.funds >= s.production.autoClipperCost,
     actions: () => [{ type: 'buyAutoClipper' }],
   },
   {
-    isVisible: (s) => s.projects.project22,
+    isVisible: (s) => s.projects.project22 && s.earth.humanFlag,
     canActivate: (s) => s.production.funds >= s.production.megaClipperCost,
     actions: () => [{ type: 'buyMegaClipper' }],
   },
@@ -174,19 +155,18 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
   },
 ]
 function getActionDescriptors(state: GameState): ActionDescriptor[] {
-  const projectDescriptors = getActiveProjects(state).map(({ id: projectId, title, description, canActivate }) => ({
-    isVisible: () => true,
-    canActivate: () => canActivate,
-    actions: (): AgentAction[] => [{ type: 'completeProject', projectId, title, description }],
-  }))
+  const projectDescriptors = getActiveProjects(state).map(({ id: projectId, title, description, canActivate, costs }) => {
+    const cost = (costs.length === 1) ? costs[0] : costs
+    return {
+      isVisible: () => true,
+      canActivate: () => canActivate,
+      actions: (): AgentAction[] => [{ type: 'completeProject', projectId, title, description, cost }],
+    }
+  })
 
   return [...ACTION_REGISTRY, ...projectDescriptors]
 }
 
-type AgentActions = {
-  available: AgentAction[]
-  unavailable: AgentAction[]
-}
 export function getActions(state: GameState): AgentActions {
   const descriptors = getActionDescriptors(state).filter(d => d.isVisible(state))
   return {
@@ -195,10 +175,6 @@ export function getActions(state: GameState): AgentActions {
   }
 }
 
-export type AgentPrompt = {
-  state: AgentState
-  actions: AgentActions
-}
 export function createAgentPrompt(state: GameState): AgentPrompt {
   return { state: toAgentState(state), actions: getActions(state) }
 }

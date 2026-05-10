@@ -1,7 +1,8 @@
-import { reduceGameState, type GameState } from "paperclips-remake"
-import { createAgentPrompt, isGameOver, toGameActions, type AgentPrompt } from "./agent-adapter"
-import { type DispatchFn } from "./dispatch"
-import type { AgentAction } from "./types"
+import fs from 'node:fs'
+import type { GameState } from "paperclips-remake"
+import type { AgentAction, StrategicNotes, AgentPrompt } from "./types"
+import type { DispatchFn } from "./dispatch"
+import { createAgentPrompt, isGameOver, toGameActions } from "./agent-adapter"
 
 const DEFAULT_TICK_MS = 1000
 
@@ -11,7 +12,7 @@ export type AgentResponse = {
 }
 export type Agent = (prompt: AgentPrompt, notes?: string) => Promise<AgentResponse>
 
-export type NotesAgent = (previousNotes: string, transcript: TickInteraction[]) => Promise<string>
+export type NotesAgent = (previousNotes: StrategicNotes, transcript: TickInteraction[]) => Promise<StrategicNotes>
 
 export type TickInteraction = {
   prompt: AgentPrompt
@@ -41,7 +42,7 @@ export async function run(agent: Agent, dispatch: DispatchFn, state: GameState, 
 }
 
 export function createRunner(agent: Agent, notesAgent: NotesAgent, dispatch: DispatchFn, config: { ticksPerGeneration: number } = { ticksPerGeneration: 60 }) {
-  return async (priorState: GameState, priorNotes: string) => {
+  return async (priorState: GameState, priorNotes: StrategicNotes) => {
     const { state, transcript } = await run(agent, dispatch, priorState, config)
     const notes = await notesAgent(priorNotes, transcript)
     return { state, notes }

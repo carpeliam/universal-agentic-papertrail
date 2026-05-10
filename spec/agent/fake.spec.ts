@@ -31,6 +31,7 @@ describe('fake agent', () => {
       projectId: 'project2',
       title: 'Wire Begging',
       description: 'Beg for wire',
+      cost: { amount: 1, unit: 'trust' },
     }
 
     const result = await maker({
@@ -301,7 +302,7 @@ describe('fake agent', () => {
     expect(action).not.toEqual(runTournament)
   })
 
-  const hypnoDrones: AgentAction = { type: 'completeProject', projectId: 'project70', title: 'HypnoDrones', description: 'Unlock the final human-to-post-human transition project.' }
+  const hypnoDrones: AgentAction = { type: 'completeProject', projectId: 'project70', title: 'HypnoDrones', description: 'Unlock the final human-to-post-human transition project.', cost: { amount: 70_000, unit: 'ops' } }
 
   it('does not run tournament when HypnoDrones is unavailable and memory is sufficient', async () => {
     const { maker } = createFakeAgent()
@@ -325,67 +326,172 @@ describe('fake agent', () => {
 
   it('buys farm when next purchase would exceed power production', async () => {
     const { maker } = createFakeAgent()
+    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     const state = applyExpansionState({
       earth: {
-        tothFlag: true, powerGridFlag: true, harvesterFlag: true, wireDroneFlag: true,
+        tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
         powerProductionRate: 10,
         powerConsumptionRate: 10,
       }
     })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, buyFarm, buyHarvester], unavailable: [] }
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyFarm)
   })
 
-  it('buys wire drone when wire drone to harvester ratio is below 0.809', async () => {
+  it('buys a farm when the power production rate is lower than the consumption rate', async () => {
     const { maker } = createFakeAgent()
+    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     const state = applyExpansionState({
+      production: {
+        wire: 100,
+      },
       earth: {
-        tothFlag: true, powerGridFlag: true, harvesterFlag: true, wireDroneFlag: true,
-        powerProductionRate: 100,
-        harvesterLevel: 10, wireDroneLevel: 0
+        tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+        farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+        powerProductionRate: 10,
+        powerConsumptionRate: 100,
       }
     })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, buyWireDrone, buyHarvester], unavailable: [] }
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+    })
+    expect(action).toEqual(buyFarm)
+  })
+
+  it('buys battery when storage is at capacity and factory purchase is not held up for long', async () => {
+    const { maker } = createFakeAgent()
+    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    const state = applyExpansionState({
+      lastTickProduction: 100000000,
+      production: {
+        wire: 100,
+        unusedClips: 100000000,
+      },
+      earth: {
+        tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+        farmLevel: 1, batteryLevel: 4, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+        powerProductionRate: 200,
+        powerConsumptionRate: 100,
+        storedPower: 40_000,
+      }
+    })
+    const { action } = await maker({
+      state: toAgentState(state),
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+    })
+    expect(action).toEqual(buyBattery)
+  })
+
+  it('buys a harvester when acquired matter is trending downward', async () => {
+    const { maker } = createFakeAgent()
+    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    await maker({
+      state: toAgentState(applyExpansionState({
+        production: {
+          wire: 100,
+        },
+        earth: {
+          tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+          farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+          powerProductionRate: 200,
+          powerConsumptionRate: 100,
+          acquiredMatter: 5,
+        }
+      })),
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+    })
+    const { action } = await maker({
+      state: toAgentState(applyExpansionState({
+        production: {
+          wire: 100,
+        },
+        earth: {
+          tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+          farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+          powerProductionRate: 200,
+          powerConsumptionRate: 100,
+          acquiredMatter: 4,
+        }
+      })),
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+    })
+    expect(action).toEqual(buyHarvester)
+  })
+  it('buys a wire drone when wire is trending downward', async () => {
+    const { maker } = createFakeAgent()
+    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    await maker({
+      state: toAgentState(applyExpansionState({
+        production: {
+          wire: 200,
+        },
+        earth: {
+          tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+          farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+          powerProductionRate: 200,
+          powerConsumptionRate: 100,
+          acquiredMatter: 100,
+        }
+      })),
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+    })
+    const { action } = await maker({
+      state: toAgentState(applyExpansionState({
+        production: {
+          wire: 100,
+        },
+        earth: {
+          tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+          farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+          powerProductionRate: 200,
+          powerConsumptionRate: 100,
+          acquiredMatter: 100,
+        }
+      })),
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyWireDrone)
   })
-  it('buys factory when ratio is in range and wire is accumulating', async () => {
+
+  it('buys a factory when wire is trending upward', async () => {
     const { maker } = createFakeAgent()
-    const state = applyExpansionState({
-      earth: {
-        tothFlag: true, powerGridFlag: true, harvesterFlag: true, wireDroneFlag: true,
-        powerProductionRate: 100,
-        harvesterLevel: 10,
-        wireDroneLevel: 16,
-        nanoWire: 1_000_000,
-        acquiredMatter: 0,
-      }
+    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    await maker({
+      state: toAgentState(applyExpansionState({
+        production: {
+          wire: 100,
+        },
+        earth: {
+          tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+          farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+          powerProductionRate: 200,
+          powerConsumptionRate: 100,
+          acquiredMatter: 100,
+        }
+      })),
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     const { action } = await maker({
-      state: toAgentState(state),
-      actions: { available: [wait, buyFactory, buyHarvester, buyWireDrone], unavailable: [] }
+      state: toAgentState(applyExpansionState({
+        production: {
+          wire: 200,
+        },
+        earth: {
+          tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
+          farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
+          powerProductionRate: 200,
+          powerConsumptionRate: 100,
+          acquiredMatter: 100,
+        }
+      })),
+      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyFactory)
   })
 
-  it('buys battery when storage is at capacity', async () => {
-    const { maker } = createFakeAgent()
-    const state = applyExpansionState({
-      earth: {
-        tothFlag: true, powerGridFlag: true, harvesterFlag: true, wireDroneFlag: true,
-        storedPower: 40_000,
-        batteryLevel: 4,
-      }
-    })
-    const { action } = await maker({
-      state: toAgentState(state),
-      actions: { available: [wait, buyBattery, buyHarvester], unavailable: [] }
-    })
-    expect(action).toEqual(buyBattery)
-  })
+
 })

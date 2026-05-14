@@ -6,7 +6,7 @@ import { createRunner } from './generation'
 import { isGameOver } from './agent-adapter'
 import createAgent from './agent'
 import createDispatch from './dispatch'
-import { StrategicNotes } from './types'
+import type { AgentType, StrategicNotes } from './types'
 
 const STATE_FILE = 'data/state.json'
 const NOTES_FILE = 'data/notes.jsonl'
@@ -42,10 +42,21 @@ async function execute() {
 
 execute()
 
-function parseArgs(argv: string[]): { agent: string, waitForClient: boolean } {
+function parseArgs(argv: string[]): { agent: AgentType, waitForClient: boolean } {
   const agentIndex = argv.indexOf('--agent')
+  let agent: AgentType
+  if (agentIndex !== -1) {
+    const agentName = argv[agentIndex + 1]
+    if (!['fake', 'haiku', 'sonnet', 'opus', 'gpt'].includes(agentName)) {
+      console.error(`Invalid agent: ${agentName}. Must be one of: fake, haiku, sonnet, opus, gpt`)
+      process.exit(1)
+    }
+    agent = agentName as AgentType
+  } else {
+    agent = 'fake'
+  }
   return {
-    agent: agentIndex !== -1 ? argv[agentIndex + 1] : 'sonnet',
+    agent,
     waitForClient: argv.includes('--wait'),
   }
 }

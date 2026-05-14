@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/main.ts",
-    "test": "vitest --run"
+    "test": "vitest --run --silent"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
@@ -14,7 +14,11 @@
     "vitest": "^4.1.5"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.77",
+    "@ai-sdk/openai": "^3.0.63",
+    "ai": "^6.0.182",
     "paperclips-remake": "github:carpeliam/paperclips",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "zod": "^4.4.3"
   }
 }

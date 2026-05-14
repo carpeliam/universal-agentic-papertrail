@@ -1,4 +1,4 @@
-import { GameState, createInitialGameState } from "paperclips-remake"
+import { createInitialGameState, type GameState } from "paperclips-remake"
 
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]

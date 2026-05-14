@@ -1,5 +1,5 @@
 import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
-import type { AgentAction, AgentActions, AgentPrompt, AgentState } from "./types"
+import type { AgentAction, AgentActions, AgentPrompt, AgentState, StrategicNotes } from "./types"
 
 export function toAgentState(state: GameState): AgentState {
   const { version, paused, prestige, wirePurchased, lastTickSales, lastTickRevenue, lastAction, earth, compute, investment, strategy, space, projects, phase, ...rest } = state
@@ -175,8 +175,8 @@ export function getActions(state: GameState): AgentActions {
   }
 }
 
-export function createAgentPrompt(state: GameState): AgentPrompt {
-  return { state: toAgentState(state), actions: getActions(state) }
+export function createAgentPrompt(state: GameState, priorNotes?: StrategicNotes[]): AgentPrompt {
+  return { state: toAgentState(state), actions: getActions(state), priorNotes }
 }
 
 export function toGameActions(action: AgentAction, state: GameState): GameAction[] {

@@ -1,9 +1,8 @@
-import type { AgentResponse, TickInteraction } from '../generation'
-import { InvestmentRiskMode, ProjectId } from 'paperclips-remake'
-import { AgentAction, StrategicNotes, AgentPrompt, AgentState } from '@/types'
 import readline from 'node:readline'
 import path from 'node:path'
 import fs from 'node:fs'
+import type { InvestmentRiskMode, ProjectId } from 'paperclips-remake'
+import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction } from '@/types'
 
 const SUMMARY_LOG_FILE = path.resolve('data/run-summary.jsonl')
 type GenerationLogEntry = {

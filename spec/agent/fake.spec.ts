@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createInitialGameState, GameState } from "paperclips-remake"
 import createFakeAgent from "@/agent/fake"
-import { AgentAction } from "@/types"
+import type { AgentAction } from "@/types"
 import { getActions, toAgentState } from "@/agent-adapter"
 import { applyComputeState, applyExpansionState } from "../helper"
 

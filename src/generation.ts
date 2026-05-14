@@ -1,35 +1,24 @@
-import fs from 'node:fs'
 import type { GameState } from "paperclips-remake"
-import type { AgentAction, StrategicNotes, AgentPrompt } from "./types"
+import type { AgentPrompt, AgentResponse, StrategicNotes, TickInteraction } from "./types"
 import type { DispatchFn } from "./dispatch"
 import { createAgentPrompt, isGameOver, toGameActions } from "./agent-adapter"
 
 const DEFAULT_TICK_MS = 1000
 
-export type AgentResponse = {
-  action: AgentAction
-  reasoning: string
-}
 export type Agent = (prompt: AgentPrompt, notes?: string) => Promise<AgentResponse>
 
-export type NotesAgent = (previousNotes: StrategicNotes, transcript: TickInteraction[]) => Promise<StrategicNotes>
-
-export type TickInteraction = {
-  prompt: AgentPrompt
-  response: AgentResponse
-}
-
+export type NotesAgent = (priorNotes: StrategicNotes[], transcript: TickInteraction[]) => Promise<StrategicNotes>
 
 type RunOptions = { ticksPerGeneration: number }
-export async function run(agent: Agent, dispatch: DispatchFn, state: GameState, options: RunOptions = { ticksPerGeneration: 60 }) {
+export async function run(agent: Agent, dispatch: DispatchFn, state: GameState, priorNotes: StrategicNotes[], options: RunOptions = { ticksPerGeneration: 60 }) {
   let currentState = state
   const transcript: TickInteraction[] = []
 
   for (let i = 0; i < options.ticksPerGeneration; i++) {
     if (isGameOver(state)) {
-      break;
+      break
     }
-    const prompt = createAgentPrompt(currentState)
+    const prompt = createAgentPrompt(currentState, i === 0 ? priorNotes : undefined)
     const response = await agent(prompt)
     transcript.push({ prompt, response })
     for (const action of toGameActions(response.action, currentState)) {
@@ -42,8 +31,8 @@ export async function run(agent: Agent, dispatch: DispatchFn, state: GameState, 
 }
 
 export function createRunner(agent: Agent, notesAgent: NotesAgent, dispatch: DispatchFn, config: { ticksPerGeneration: number } = { ticksPerGeneration: 60 }) {
-  return async (priorState: GameState, priorNotes: StrategicNotes) => {
-    const { state, transcript } = await run(agent, dispatch, priorState, config)
+  return async (priorState: GameState, priorNotes: StrategicNotes[]) => {
+    const { state, transcript } = await run(agent, dispatch, priorState, priorNotes, config)
     const notes = await notesAgent(priorNotes, transcript)
     return { state, notes }
   }

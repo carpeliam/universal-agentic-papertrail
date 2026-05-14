@@ -1,4 +1,4 @@
-import { reduceGameState, type GameAction, type GameState } from "paperclips-remake";
+import { reduceGameState, type GameAction, type GameState } from "paperclips-remake"
 
 export type DispatchFn = (state: GameState, action: GameAction) => Promise<GameState>
 type DispatchOptions = { wss: { broadcast: (action: GameState) => Promise<void> }}

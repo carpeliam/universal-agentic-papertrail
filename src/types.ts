@@ -58,6 +58,7 @@ export type AgentActions = {
 export type AgentPrompt = {
   state: AgentState
   actions: AgentActions
+  priorNotes?: StrategicNotes[]
 }
 
 export type StrategicNotes = {

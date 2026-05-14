@@ -30,9 +30,9 @@ function determinePhase(state: AgentState) {
   }
   return 'boot'
 }
-async function summarize(previousNotes: StrategicNotes | null, transcript: TickInteraction[]): Promise<StrategicNotes> {
-  const first = transcript[0].prompt
-  const last  = transcript[transcript.length - 1].prompt
+async function summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
+  const first = transcript.at(0).prompt
+  const last  = transcript.at(-1).prompt
 
   const endState   = last.state
   const startState = first.state
@@ -57,7 +57,7 @@ async function summarize(previousNotes: StrategicNotes | null, transcript: TickI
   const startActions = new Set(first?.actions.available.map(a => a.type) ?? [])
   const endActions   = last?.actions.available.map(a => a.type) ?? []
   const newUnlocks   = endActions.filter(a => !startActions.has(a))
-  const importantUnlocks = Array.from(new Set([...(previousNotes?.importantUnlocks ?? []), ...newUnlocks]))
+  const importantUnlocks = Array.from(new Set([...(priorNotes.at(-1)?.importantUnlocks ?? []), ...newUnlocks]))
 
   const surprisesAndUpdates: string[] = []
   const startPhase = determinePhase(startState)

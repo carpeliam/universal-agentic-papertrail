@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile, appendFile } from 'node:fs/promises'
 import { WebSocketServer } from 'ws'
 import { createInitialGameState, type GameAction, type GameState } from 'paperclips-remake'
 import { createRunner } from './generation'
@@ -9,14 +9,14 @@ import createDispatch from './dispatch'
 import { StrategicNotes } from './types'
 
 const STATE_FILE = 'data/state.json'
-const NOTES_FILE = 'data/notes.json'
+const NOTES_FILE = 'data/notes.jsonl'
 
 
 async function execute() {
   const { agent: agentName, waitForClient } = parseArgs(process.argv)
   const { maker, summarize } = createAgent(agentName)
-  let state = (await loadState()) ?? createInitialGameState()
-  let notes = await loadNotes()
+  let gameState = (await loadState()) ?? createInitialGameState()
+  const priorNotes = await loadNotes()
 
   const wss = createWebSocketServer()
   process.once('SIGINT', () => { wss.close() })
@@ -29,8 +29,11 @@ async function execute() {
     console.log('connection established.')
   }
 
-  while (!isGameOver(state)) {
-    ({ state, notes } = await runner(state, notes))
+  while (!isGameOver(gameState)) {
+    const { state, notes } = await runner(gameState, priorNotes)
+    gameState = state
+    priorNotes.push(notes)
+    if (priorNotes.length > 3) priorNotes.shift()
     await saveState(state)
     await saveNotes(notes)
   }
@@ -53,9 +56,12 @@ async function loadState(): Promise<GameState | null> {
   return JSON.parse(raw) as GameState
 }
 
-async function loadNotes(): Promise<StrategicNotes | null> {
-  if (!existsSync(NOTES_FILE)) return null
-  return JSON.parse(await readFile(NOTES_FILE, 'utf-8')) as StrategicNotes
+async function loadNotes(): Promise<StrategicNotes[]> {
+  if (!existsSync(NOTES_FILE)) return []
+  const lines = (await readFile(NOTES_FILE, 'utf-8'))
+    .split('\n')
+    .filter(line => line.trim())
+  return lines.slice(-3).map(line => JSON.parse(line)) as StrategicNotes[]
 }
 
 async function saveState(state: GameState): Promise<void> {
@@ -63,7 +69,7 @@ async function saveState(state: GameState): Promise<void> {
 }
 
 async function saveNotes(notes: StrategicNotes): Promise<void> {
-  await writeFile(NOTES_FILE, JSON.stringify(notes))
+  await appendFile(NOTES_FILE, JSON.stringify(notes) + '\n')
 }
 
 function createWebSocketServer() {

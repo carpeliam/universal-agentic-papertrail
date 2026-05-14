@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { createInitialGameState, GameAction, type GamePhase, type GameState } from "paperclips-remake"
+import { createInitialGameState, type GamePhase, type GameState } from "paperclips-remake"
 import { getActions, toAgentState, toGameActions } from "@/agent-adapter"
 import { applyExpansionState } from "./helper"
 

@@ -8,7 +8,7 @@ describe('run', () => {
     const fakeAgent: Agent = async () => ({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(fakeAgent, fakeDispatch, initialState, { ticksPerGeneration: 3 })
+    await run(fakeAgent, fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
 
     expect(fakeDispatch).toHaveBeenNthCalledWith(1, initialState, { type: 'makeClip' })
     const additionalExpectedActions = [
@@ -27,7 +27,7 @@ describe('run', () => {
     const fakeAgent: Agent = async () => ({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    const { transcript } = await run(fakeAgent, fakeDispatch, initialState, { ticksPerGeneration: 3 })
+    const { transcript } = await run(fakeAgent, fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
 
     expect(transcript).toHaveLength(3)
   })
@@ -40,7 +40,7 @@ describe('run', () => {
     const fakeAgent: Agent = vi.fn().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(fakeAgent, fakeDispatch, winState, { ticksPerGeneration: 2 })
+    await run(fakeAgent, fakeDispatch, winState, [], { ticksPerGeneration: 2 })
 
     expect(fakeAgent).not.toHaveBeenCalled()
     expect(fakeDispatch).not.toHaveBeenCalled()
@@ -51,7 +51,7 @@ describe('run', () => {
     const fakeAgent: Agent = vi.fn().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(fakeAgent, fakeDispatch, stalledState, { ticksPerGeneration: 2 })
+    await run(fakeAgent, fakeDispatch, stalledState, [], { ticksPerGeneration: 2 })
 
     expect(fakeAgent).not.toHaveBeenCalled()
     expect(fakeDispatch).not.toHaveBeenCalled()
@@ -62,15 +62,15 @@ describe('createRunner', () => {
   it('asks the agent to rewrite notes at the end of the generation', async () => {
     const initialState = createInitialGameState()
     const fakeAgent: Agent = async () => ({ action: { type: 'makeClip' }, reasoning: '' })
-    const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue('new notes from agent')
+    const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
     const runGeneration = createRunner(fakeAgent, fakeNotesAgent, fakeDispatch, { ticksPerGeneration: 2 })
-    const result = await runGeneration(initialState, 'old notes')
+    const result = await runGeneration(initialState, [])
 
-    expect(result.notes).toBe('new notes from agent')
+    expect(result.notes).toEqual({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
     expect(fakeNotesAgent).toHaveBeenCalledWith(
-      'old notes',
+      [],
       expect.arrayContaining([
         expect.objectContaining({
           response: { action: { type: 'makeClip' }, reasoning: '' }
@@ -80,5 +80,18 @@ describe('createRunner', () => {
         })
       ])
     )
+  })
+
+  it('only shares prior notes with the first tick of each generation', async () => {
+    const initialState = createInitialGameState()
+    const fakeAgent = vi.fn<Agent>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
+    const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
+
+    const runGeneration = createRunner(fakeAgent, fakeNotesAgent, fakeDispatch, { ticksPerGeneration: 2 })
+    await runGeneration(initialState, [])
+
+    expect(fakeAgent).toHaveBeenNthCalledWith(1, expect.objectContaining({ priorNotes: [] }))
+    expect(fakeAgent).toHaveBeenLastCalledWith(expect.objectContaining({ priorNotes: undefined }))
   })
 })

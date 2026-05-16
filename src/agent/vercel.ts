@@ -1,16 +1,31 @@
 import { generateText, LanguageModel, Output } from "ai"
-import { agentResponseSchema, strategicNotesSchema, type AgentPrompt, type AgentResponse, type AgentType, type StrategicNotes, type TickInteraction } from "@/types"
+import { agentResponseSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction } from "@/types"
 import { anthropic } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
+import { google } from "@ai-sdk/google"
+import { createOllama } from 'ollama-ai-provider-v2'
 
+const ollama = createOllama()
 
-type LLMAgentModel = Exclude<AgentType, 'fake'>
+function languageModelFor(agentSpec: LLMAgentSpec) {
+  switch (agentSpec.provider) {
+    case 'anthropic':
+      return anthropic(agentSpec.model)
+    case 'openai':
+      return openai(agentSpec.model)
+    case 'google':
+      return google(agentSpec.model)
+    case 'ollama':
+      return ollama(agentSpec.model)
+    default:
+      throw Error(`Unknown provider "${agentSpec.provider}"`)
+  }
+}
 
-const models: Record<LLMAgentModel, LanguageModel> = {
-  haiku: anthropic('claude-haiku-4-5'),
-  sonnet: anthropic('claude-sonnet-4-6'),
-  opus: anthropic('claude-opus-4-7'),
-  gpt: openai('gpt-5'),
+function createLogger(shouldLog: boolean) {
+  return function log(...messages: any[]) {
+    if (shouldLog) console.log(new Date(), ...messages)
+  }
 }
 
 const actionInstructions = `\
@@ -30,17 +45,20 @@ yourself, but trust the current state over the notes; things may have moved on s
 const nthTickPrompt = `Take a look at what changed. Did your last action have the effect you expected? \
   Update your thinking if not, then choose your next action and explain your reasoning.`
 
-function createMaker(model: LanguageModel) {
+function createMaker(model: LanguageModel, logTicks: boolean) {
+  const log = createLogger(logTicks)
   return async function maker(prompt: AgentPrompt): Promise<AgentResponse> {
     const { state, actions, priorNotes } = prompt
     const intro = (priorNotes)
         ? (priorNotes.length) ? firstTickNthGenerationPrompt : firstTickFirstGenerationPrompt
         : nthTickPrompt
+    log('prompting with available actions:', JSON.stringify(actions.available))
     const { output } = await generateText({
       model,
       output: Output.object({ schema: agentResponseSchema }),
       prompt: `${intro}\nActions: ${JSON.stringify(actions)}\nState: ${JSON.stringify(state)}`,
     })
+    log(JSON.stringify(output))
     return output
   }
 }
@@ -58,21 +76,25 @@ current strategic situation is.
 Write in a clear, declarative voice. The next agent needs stable ground truth, not a reconstruction of how it felt to be in \
 the moment. You are their memory; be faithful.
 Be selective. The next agent will act on these notes — clarity and signal matter more than completeness.`
-function createSummarize(model: LanguageModel) {
+function createSummarize(model: LanguageModel, logSummaries: boolean) {
+  const log = createLogger(logSummaries)
   return async function summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
     const prompt = `${summarizePrompt}\n\nPrior notes:\n${JSON.stringify(priorNotes)}\n\nTranscript:\n${JSON.stringify(transcript)}`
+    log('summarizing')
     const { output } = await generateText({
       model,
       output: Output.object({ schema: strategicNotesSchema }),
       prompt,
     })
-    console.log(JSON.stringify(output))
+    log(JSON.stringify(output))
     return output
   }
 }
 
-export default function createAiAgent(model: LLMAgentModel) {
-  const maker = createMaker(models[model])
-  const summarize = createSummarize(models[model])
+export default function createAiAgent(options: LLMAgentOptions) {
+  const logTicks = options.verbosity > 1
+  const logSummaries = options.verbosity > 0
+  const maker = createMaker(languageModelFor(options.agent), logTicks)
+  const summarize = createSummarize(languageModelFor(options.summarizer), logSummaries)
   return { maker, summarize }
 }

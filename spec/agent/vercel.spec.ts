@@ -41,13 +41,13 @@ beforeEach(() => {
 })
 
 describe('maker', () => {
-  const { maker } = createAiAgent('sonnet')
+  const { maker } = createAiAgent({ agent: { provider: 'anthropic', model: 'claude-monet-1-0' }, summarizer: { provider: 'anthropic', model: 'claude-debussy-1-0' }, verbosity: 0 })
 
   it('sets the model according to the argument', async () => {
     await maker(prompt({ priorNotes: [] }))
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      model: expect.objectContaining({ modelId: 'claude-sonnet-4-6' }),
+      model: expect.objectContaining({ modelId: 'claude-monet-1-0' }),
     }))
   })
 
@@ -88,7 +88,7 @@ describe('maker', () => {
 })
 
 describe('summarize', () => {
-  const { summarize } = createAiAgent('sonnet')
+  const { summarize } = createAiAgent({ agent: { provider: 'anthropic', model: 'claude-monet-1-0' }, summarizer: { provider: 'anthropic', model: 'claude-debussy-1-0' }, verbosity: 0 })
 
   const mockTranscript: TickInteraction[] = [
     {
@@ -105,7 +105,7 @@ describe('summarize', () => {
     await summarize([mockStrategicNotes], mockTranscript)
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      model: expect.objectContaining({ modelId: 'claude-sonnet-4-6' }),
+      model: expect.objectContaining({ modelId: 'claude-debussy-1-0' }),
     }))
   })
 

@@ -89,4 +89,11 @@ export type TickInteraction = {
   response: AgentResponse
 }
 
-export type AgentType = 'fake' | 'haiku' | 'sonnet' | 'opus' | 'gpt'
+export type Provider = 'anthropic' | 'openai' | 'google' | 'ollama'
+export type LLMAgentSpec = { provider: Provider; model: string }
+export type LLMAgentOptions = {
+  agent: LLMAgentSpec
+  summarizer: LLMAgentSpec
+  verbosity: number
+}
+export type AgentOptions = { type: 'fake'; verbosity: number } | ({ type: 'llm' } & LLMAgentOptions)

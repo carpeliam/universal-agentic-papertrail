@@ -125,7 +125,7 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
       { type: 'investDeposit' },
       { type: 'investWithdraw' },
       ...(
-        ['low', 'med', 'hi']
+        (['low', 'med', 'hi'] as const)
           .filter(mode => mode !== s.investment.riskMode)
           .map((mode: InvestmentRiskMode) => ({ type: 'chooseInvestmentRisk' as const, mode }))
       ),

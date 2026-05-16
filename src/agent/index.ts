@@ -1,10 +1,10 @@
 import createAiAgent from './vercel'
 import createFakeAgent from './fake'
-import type { AgentType } from '../types'
+import type { AgentOptions } from '@/types'
 
-export default function createAgent(name: AgentType) {
-  switch (name) {
+export default function createAgent(options: AgentOptions) {
+  switch (options.type) {
     case 'fake': return createFakeAgent()
-    default: return createAiAgent(name)
+    default: return createAiAgent(options)
   }
 }

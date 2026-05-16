@@ -1,22 +1,23 @@
 import { existsSync } from 'node:fs'
-import { readFile, writeFile, appendFile } from 'node:fs/promises'
+import { readFile, writeFile, appendFile, unlink } from 'node:fs/promises'
 import { WebSocketServer } from 'ws'
-import { createInitialGameState, type GameAction, type GameState } from 'paperclips-remake'
+import { createInitialGameState, type GameState } from 'paperclips-remake'
+import parseCLI from './cli'
 import { createRunner } from './generation'
 import { isGameOver } from './agent-adapter'
 import createAgent from './agent'
 import createDispatch from './dispatch'
-import type { AgentType, StrategicNotes } from './types'
+import type { StrategicNotes } from './types'
 
 const STATE_FILE = 'data/state.json'
 const NOTES_FILE = 'data/notes.jsonl'
 
 
 async function execute() {
-  const { agent: agentName, waitForClient } = parseArgs(process.argv)
-  const { maker, summarize } = createAgent(agentName)
-  let gameState = (await loadState()) ?? createInitialGameState()
-  const priorNotes = await loadNotes()
+  const { waitForClient, reset, ...agentOptions } = parseCLI()
+  const { maker, summarize } = createAgent(agentOptions)
+  let gameState = (await loadState(reset)) ?? createInitialGameState()
+  const priorNotes = await loadNotes(reset)
 
   const wss = createWebSocketServer()
   process.once('SIGINT', () => { wss.close() })
@@ -35,40 +36,29 @@ async function execute() {
     priorNotes.push(notes)
     if (priorNotes.length > 3) priorNotes.shift()
     await saveState(state)
-    await saveNotes(notes)
+    await appendNotes(notes)
   }
   wss.close()
 }
 
 execute()
 
-function parseArgs(argv: string[]): { agent: AgentType, waitForClient: boolean } {
-  const agentIndex = argv.indexOf('--agent')
-  let agent: AgentType
-  if (agentIndex !== -1) {
-    const agentName = argv[agentIndex + 1]
-    if (!['fake', 'haiku', 'sonnet', 'opus', 'gpt'].includes(agentName)) {
-      console.error(`Invalid agent: ${agentName}. Must be one of: fake, haiku, sonnet, opus, gpt`)
-      process.exit(1)
-    }
-    agent = agentName as AgentType
-  } else {
-    agent = 'fake'
-  }
-  return {
-    agent,
-    waitForClient: argv.includes('--wait'),
-  }
-}
-
-async function loadState(): Promise<GameState | null> {
+async function loadState(reset: boolean): Promise<GameState | null> {
   if (!existsSync(STATE_FILE)) return null
+  if (reset) {
+    await unlink(STATE_FILE)
+    return null
+  }
   const raw = await readFile(STATE_FILE, 'utf-8')
   return JSON.parse(raw) as GameState
 }
 
-async function loadNotes(): Promise<StrategicNotes[]> {
+async function loadNotes(reset: boolean): Promise<StrategicNotes[]> {
   if (!existsSync(NOTES_FILE)) return []
+  if (reset) {
+    await unlink(NOTES_FILE)
+    return []
+  }
   const lines = (await readFile(NOTES_FILE, 'utf-8'))
     .split('\n')
     .filter(line => line.trim())
@@ -79,7 +69,7 @@ async function saveState(state: GameState): Promise<void> {
   await writeFile(STATE_FILE, JSON.stringify(state))
 }
 
-async function saveNotes(notes: StrategicNotes): Promise<void> {
+async function appendNotes(notes: StrategicNotes): Promise<void> {
   await appendFile(NOTES_FILE, JSON.stringify(notes) + '\n')
 }
 
@@ -96,17 +86,14 @@ function createWebSocketServer() {
 
   return {
     broadcast(state: GameState) {
-      return new Promise<void>((resolve) => {
-        wss.clients.forEach(client => {
-          if (client.readyState === client.OPEN) {
-            try {
-              client.send(JSON.stringify(state))
-            } catch (err) {
-              console.error('send failed:', err)
-            }
+      wss.clients.forEach(client => {
+        if (client.readyState === client.OPEN) {
+          try {
+            client.send(JSON.stringify(state))
+          } catch (err) {
+            console.error('send failed:', err)
           }
-        })
-        resolve()
+        }
       })
     },
     async waitForConnection() { await new Promise<void>(resolve => wss.once('connection', resolve)) },

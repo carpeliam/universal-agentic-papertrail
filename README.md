@@ -8,7 +8,7 @@ An experiment in agentic play. Your LLM plays [Universal Paperclips](https://www
 
 This builds on top of a [forked copy](https://github.com/carpeliam/paperclips) of [PaulAtkins88/paperclips](https://github.com/PaulAtkins88/paperclips), built to expose a domain layer that an agent can interact with directly.
 
-Given a starting state (limited to only the information a human would see), an agent runs for ~60s, making decisions and rationalizing them. Those decisions are then summarized and passed off to the next generation, ad infinitum until the game is completed or stalled.
+Given a starting state (limited to only the information a human would see), an agent runs for ~60s, making decisions and rationalizing them. Those decisions are then summarized and passed off to the next generation, ad infinitum until the game is completed or stalled. Each generation will see the summaries of the 3 generations that came before it.
 
 ## Backstory: A Timeline
 
@@ -40,4 +40,10 @@ This will hold off on running the game until the UI connects. To run the UI:
 You can then watch in real time as your agent's decisions play out.
 
 ### Configuring an agent
-`--agent` can be followed by one of `fake`, `haiku`, `sonnet`, `opus`, or `gpt`. In order to run any model, you'll need an `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` environment variable depending on your model provider.
+`--agent` can have one of the following values:
+* `haiku`, `sonnet`, `opus`, `gpt`, `gemini`, or `mistral`
+* any `anthropic`, `openai`, `google`, or `ollama` model in the format `<provider>/model`, eg `ollama/qwen3:30b`.
+
+If you'd like to configure the summarizer agent differently, you can pass in a `--summarizer` flag that accepts the same values as `--agent`.
+
+In order to run any cloud-based model, you'll need a corresponding API key environment variable, eg  `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GOOGLE_GENERATIVE_AI_API_KEY` depending on your model provider.

@@ -1,54 +1,106 @@
 import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
 import type { AgentAction, AgentActions, AgentPrompt, AgentState, StrategicNotes } from "./types"
 
-export function toAgentState(state: GameState): AgentState {
-  const { version, paused, prestige, wirePurchased, lastTickSales, lastTickRevenue, lastAction, earth, compute, investment, strategy, space, projects, phase, ...rest } = state
+function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
+  const { production, economy, earth, compute, investment, strategy, space, projects, version, paused, prestige, wirePurchased, lastTickSales, lastTickRevenue, lastAction, phase, ...rest } = state
+  const { autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = production
+  return {
+    production: {
+      ...productionFields,
+      ...(phase !== 'boot' && earth.humanFlag && { autoClippers, autoClipperCost }),
+      ...(earth.humanFlag && projects.project22 && { megaClippers, megaClipperCost }),
+    }
+  }
+}
+
+function economyStateFor(state: GameState): Pick<AgentState, 'economy'> {
+  const { clipPrice, wireCost, demand, wireSupply, adCost } = state.economy
+  return { economy: { clipPrice, wireCost, demand, wireSupply, adCost } }
+}
+
+function computeStateFor(state: GameState): Pick<AgentState, 'compute'> {
+  const { unlocked, processors, memory, operations, trust, creativity } = state.compute
+  return unlocked ? { compute: { processors, memory, operations, trust, creativity } } : {}
+}
+
+function investmentStateFor(state: GameState): Pick<AgentState, 'investment'> {
+  const { unlocked, bankroll, portTotal, secTotal, riskMode, investLevel, stocks, investUpgradeCost } = state.investment
+  return unlocked
+    ? { investment: { bankroll, portTotal, secTotal, riskMode, investLevel, stocks, investUpgradeCost: { amount: investUpgradeCost, unit: 'yomi' } } }
+    : {}
+}
+
+function strategyStateFor(state: GameState): Pick<AgentState, 'strategy'> {
+  const { unlocked, strategies, selectedStrategy, yomi, tourneyCost, tourneyLevel, autoTourneyEnabled, lastResults, lastPayoffMatrix, hMovePrev, vMovePrev } = state.strategy
+  return unlocked
+    ? { strategy: { strategies, selectedStrategy, yomi, tourneyCost, tourneyLevel, lastResults, lastPayoffMatrix, hMovePrev, vMovePrev, ...(state.projects.project118 && { autoTourneyEnabled }) } }
+    : {}
+}
+
+function earthStateFor(state: GameState): Pick<AgentState, 'earth'> {
+  const {
+    humanFlag, nanoWire, tothFlag, powerGridFlag, wireProductionFlag,
+    farmLevel, farmCost, farmRate,
+    batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize,
+    availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate,
+    harvesterFlag, harvesterLevel, harvesterCost,
+    wireDroneFlag, wireDroneLevel, wireDroneCost,
+    factoryFlag, factoryLevel, factoryCost, factoryRate,
+  } = state.earth
+  return humanFlag
+    ? {}
+    : {
+      earth: {
+        nanoWire,
+        ...(tothFlag && powerGridFlag && { farmLevel, farmCost, farmRate, batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize }),
+        ...(wireProductionFlag && { availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate }),
+        ...(harvesterFlag && { harvesterLevel, harvesterCost }),
+        ...(wireDroneFlag && { wireDroneLevel, wireDroneCost }),
+        ...(factoryFlag && { factoryLevel, factoryCost, factoryRate }),
+      }
+    }
+}
+
+function spaceStateFor(state: GameState): Pick<AgentState, 'space'> {
+  const {
+    totalMatter, foundMatter, probeCount, probeLaunchLevel, probeDescendents, probeCost, probeSpeed, probeNav, probeRep, probeHaz, probeFac, probeHarv, probeWire, probeCombat, probeTrust, probeUsedTrust, probeTrustCost, maxTrust,
+    honor, maxTrustCost, probesLostHaz, probesLostDrift, probesLostCombat, drifterCount, activeBattle, battleFlag,
+  } = state.space
+  return state.earth.spaceFlag
+    ? {
+      space: {
+        totalMatter, foundMatter, probeCount, probeLaunchLevel, probeDescendents, probeCost, probeSpeed, probeNav, probeRep, probeHaz, probeFac, probeHarv, probeWire, probeCombat, probeTrust, probeUsedTrust, probeTrustCost, maxTrust,
+        ...(probesLostHaz > 0 && { probesLostHaz }),
+        ...(probesLostDrift > 0 && { probesLostDrift }),
+        ...(probesLostCombat > 0 && { probesLostCombat }),
+        ...(battleFlag && { drifterCount, activeBattle }),
+        ...(state.projects.project121 && { honor, maxTrustCost }),
+      }
+    }
+    : {}
+}
+
+function projectStateFor(state: GameState): Pick<AgentState, 'projects'> {
   const fulfilledProjects = Object.fromEntries(
-    Object.entries(projects).filter(([_id, completed]) => completed)
+    Object.entries(state.projects).filter(([_id, completed]) => completed)
   ) as Record<ProjectId, boolean>
+  return Object.keys(fulfilledProjects).length > 0 ? { projects: fulfilledProjects } : {}
+}
+
+export function toAgentState(state: GameState): AgentState {
+  const { elapsedMs, lastTickProduction } = state
 
   return {
-    ...rest,
-    ...(compute.unlocked && { compute }),
-    ...(investment.unlocked && {
-      investment: {
-        bankroll: investment.bankroll,
-        portTotal: investment.portTotal,
-        secTotal: investment.secTotal,
-        riskMode: investment.riskMode,
-        investLevel: investment.investLevel,
-        stocks: investment.stocks,
-        investUpgradeCost: { amount: investment.investUpgradeCost, unit: 'yomi' },
-      }
-    }),
-    ...(strategy.unlocked && { strategy }),
-    ...(!earth.humanFlag && {
-      earth: {
-        nanoWire: earth.nanoWire,
-        ...(earth.tothFlag && earth.powerGridFlag && {
-          farmLevel: earth.farmLevel, farmCost: earth.farmCost, farmRate: earth.farmRate,
-          batteryLevel: earth.batteryLevel, batteryCost: earth.batteryCost,
-          powerProductionRate: earth.powerProductionRate, powerConsumptionRate: earth.powerConsumptionRate,
-          storedPower: earth.storedPower, batterySize: earth.batterySize,
-        }),
-        ...(earth.wireProductionFlag && {
-          availableMatter: earth.availableMatter,
-          acquiredMatter: earth.acquiredMatter,
-          processedMatter: earth.processedMatter,
-          harvesterRate: earth.harvesterRate, wireDroneRate: earth.wireDroneRate,
-        }),
-        ...(earth.harvesterFlag && {
-          harvesterLevel: earth.harvesterLevel, harvesterCost: earth.harvesterCost,
-        }),
-        ...(earth.wireDroneFlag && {
-          wireDroneLevel: earth.wireDroneLevel, wireDroneCost: earth.wireDroneCost,
-        }),
-        ...(earth.factoryFlag && {
-          factoryLevel: earth.factoryLevel, factoryCost: earth.factoryCost, factoryRate: earth.factoryRate,
-        }),
-      },
-    }),
-    ...(Object.keys(fulfilledProjects).length > 0 && { projects: fulfilledProjects }),
+    elapsedMs,
+    lastTickProduction,
+    ...productionStateFor(state),
+    ...economyStateFor(state),
+    ...computeStateFor(state),
+    ...investmentStateFor(state),
+    ...strategyStateFor(state),
+    ...earthStateFor(state),
+    ...projectStateFor(state),
+    ...spaceStateFor(state),
   }
 }
 

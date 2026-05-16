@@ -24,7 +24,7 @@ function determinePhase(state: AgentState) {
   if ('compute' in state) {
     return 'compute'
   }
-  if (state.production.autoClippers > 0 || state.production.marketingLevel > 1 || 'projects' in state) {
+  if ((state.production.autoClippers ?? 0) > 0 || state.production.marketingLevel > 1 || 'projects' in state) {
     return 'industry'
   }
   return 'boot'
@@ -296,7 +296,7 @@ export default function createFakeAgent() {
       }
 
       // Proactive wire buffer (below emergency floor but ahead of empty)
-      const wireNeedMultiplier = (state.production.megaClippers > 0 ? 1.5 : 1) * (!state.projects?.project26 ? 1.15 : 1)
+      const wireNeedMultiplier = ((state.production.megaClippers ?? 0) > 0 ? 1.5 : 1) * (!state.projects?.project26 ? 1.15 : 1)
       if (buyWire && state.production.wire < state.economy.demand * wireNeedMultiplier) {
         return { action: buyWire, reasoning: 'Wire buffer low — topping up.' }
       }
@@ -313,28 +313,28 @@ export default function createFakeAgent() {
       }
       if (
         buyAutoClipper &&
-        state.production.autoClippers < 75 &&
+        state.production.autoClippers! < 75 &&
         wireIsSustainable &&
-        state.production.funds - state.production.autoClipperCost >= state.economy.wireCost
+        state.production.funds - state.production.autoClipperCost! >= state.economy.wireCost
       ) {
         return { action: buyAutoClipper, reasoning: 'Building to 75 autoclippers.' }
       }
       if (
         buyMegaClipper &&
-        state.production.megaClippers < 95 &&
+        state.production.megaClippers! < 95 &&
         wireIsSustainable &&
-        state.production.funds - state.production.megaClipperCost >= state.economy.wireCost
+        state.production.funds - state.production.megaClipperCost! >= state.economy.wireCost
       ) {
         return { action: buyMegaClipper, reasoning: 'Buying mega clipper to REALLY increase production.' }
       }
-      if (state.production.megaClippers >= 95) {
-        if (buyMegaClipper && wireIsSustainable && state.production.funds - state.production.megaClipperCost >= state.economy.wireCost) {
+      if ((state.production.megaClippers ?? 0) >= 95) {
+        if (buyMegaClipper && wireIsSustainable && state.production.funds - state.production.megaClipperCost! >= state.economy.wireCost) {
           return { action: buyMegaClipper, reasoning: 'Buying more megaclippers.' }
         }
         if (
           buyAutoClipper && wireIsSustainable &&
-          state.production.autoClipperCost < state.production.megaClipperCost &&
-          state.production.funds - state.production.autoClipperCost >= state.economy.wireCost
+          state.production.autoClipperCost! < state.production.megaClipperCost! &&
+          state.production.funds - state.production.autoClipperCost! >= state.economy.wireCost
         ) {
           return { action: buyAutoClipper, reasoning: 'Megaclippers too expensive — autoclippers instead.' }
         }
@@ -350,7 +350,7 @@ export default function createFakeAgent() {
       })
       const preparingForProject = Object.keys(haveSeenProject).some(p => findProject(p as ProjectId))
       const targetInventorySeconds = 45
-      if (raisePrice && (preparingForProject || (state.production.autoClippers > 0 && secondsOfInventory <= targetInventorySeconds / 2))) {
+      if (raisePrice && (preparingForProject || ((state.production.autoClippers ?? 0) > 0 && secondsOfInventory <= targetInventorySeconds / 2))) {
         return {
           action: raisePrice,
           reasoning: preparingForProject ? 'Gotta get ready for a big project!' : 'Inventory lean — raising price.'
@@ -478,7 +478,7 @@ export default function createFakeAgent() {
       if (
         investWithdraw &&
         state.investment.riskMode === 'hi' &&
-        state.investment.bankroll > state.production.megaClipperCost &&
+        state.investment.bankroll > state.production.megaClipperCost! &&
         tickCount % 30 === 0
       ) {
         return { action: investWithdraw, reasoning: 'Opportunistic withdraw to put gains to work.' }

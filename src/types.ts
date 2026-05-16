@@ -8,7 +8,12 @@ const costSchema = z.object({
 type CostUnit = z.infer<typeof costSchema>['unit']
 export type Cost<U extends CostUnit = CostUnit> = Omit<z.infer<typeof costSchema>, 'unit'> & { unit: U }
 
-type AgentEconomy = Pick<GameState['economy'], 'clipPrice' | 'wirePrice' | 'wireCost' | 'demand' | 'wireSupply' | 'adCost'>
+type AgentProduction = Omit<GameState['production'], 'autoClippers' | 'autoClipperCost' | 'megaClippers' | 'megaClipperCost'>
+  & Partial<Pick<GameState['production'], 'autoClippers' | 'autoClipperCost' | 'megaClippers' | 'megaClipperCost'>>
+type AgentEconomy = Pick<GameState['economy'], 'clipPrice' | 'wireCost' | 'demand' | 'wireSupply' | 'adCost'>
+type AgentCompute = Pick<GameState['compute'], 'processors' | 'memory' | 'operations' | 'trust' | 'creativity'>
+type AgentStrategy = Pick<GameState['strategy'], 'strategies' | 'selectedStrategy' | 'yomi' | 'tourneyCost' | 'tourneyLevel' | 'lastResults' | 'lastPayoffMatrix' | 'hMovePrev' | 'vMovePrev'>
+  & Partial<Pick<GameState['strategy'], 'autoTourneyEnabled'>>
 type AgentEarth =
   Pick<GameState['earth'], 'nanoWire'>
   & Partial<Pick<GameState['earth'],
@@ -22,9 +27,18 @@ type AgentEarth =
 type AgentInvestment =
   Pick<GameState['investment'], 'bankroll' | 'portTotal' | 'secTotal' | 'riskMode' | 'investLevel' | 'stocks'>
   & { investUpgradeCost: Cost<'yomi'> }
-export type AgentState = Omit<GameState, 'version' | 'paused' | 'prestige' | 'wirePurchased' | 'lastTickSales' | 'lastTickRevenue' | 'lastAction' | 'economy' | 'earth' | 'space' | 'compute' | 'investment' | 'strategy' | 'projects' | 'phase'>
-  & Partial<Pick<GameState, 'compute' | 'strategy' | 'space' | 'projects'>>
-  & { economy: AgentEconomy; earth?: AgentEarth; investment?: AgentInvestment }
+type AgentSpace = Pick<GameState['space'], 'totalMatter' | 'foundMatter' | 'probeCount' | 'probeLaunchLevel' | 'probeDescendents' | 'probeCost' | 'probeSpeed' | 'probeNav' | 'probeRep' | 'probeHaz' | 'probeFac' | 'probeHarv' | 'probeWire' | 'probeCombat' | 'probeTrust' | 'probeUsedTrust' | 'probeTrustCost' | 'maxTrust'>
+  & Partial<Pick<GameState['space'], 'honor' | 'maxTrustCost' | 'probesLostHaz' | 'probesLostDrift' | 'probesLostCombat' | 'drifterCount' | 'activeBattle'>>
+export type AgentState = Pick<GameState, 'elapsedMs' | 'lastTickProduction'> & Partial<Pick<GameState, 'projects'>>
+  & {
+    production: AgentProduction
+    economy: AgentEconomy
+    compute?: AgentCompute
+    strategy?: AgentStrategy
+    earth?: AgentEarth
+    investment?: AgentInvestment
+    space?: AgentSpace
+  }
 
 
 const investmentRiskModeSchema = z.enum(['low', 'med', 'hi']) as z.ZodType<InvestmentRiskMode>

@@ -36,3 +36,19 @@ export function applyExpansionState(overrides: DeepPartial<GameState> = {}): Gam
     projects: { ...base.projects, ...projects, project35: true },
   }
 }
+export function applySpaceState(overrides: DeepPartial<GameState> = {}): GameState {
+  const base = applyExpansionState()
+  const { compute, production, economy, investment, strategy, earth, space, projects, ...rest } = overrides
+  return {
+    ...base,
+    ...rest as Partial<GameState>,
+    compute: { ...base.compute, ...compute } as GameState['compute'],
+    production: { ...base.production, ...production } as GameState['production'],
+    economy: { ...base.economy, ...economy } as GameState['economy'],
+    investment: { ...base.investment, ...investment } as GameState['investment'],
+    strategy: { ...base.strategy, ...strategy } as GameState['strategy'],
+    earth: { ...base.earth, spaceFlag: true, ...earth } as GameState['earth'],
+    space: { ...base.space, ...space } as GameState['space'],
+    projects: { ...base.projects, ...projects, project35: true } as GameState['projects'],
+  }
+}

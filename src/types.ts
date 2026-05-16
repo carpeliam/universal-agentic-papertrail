@@ -24,7 +24,7 @@ type AgentInvestment =
   & { investUpgradeCost: Cost<'yomi'> }
 export type AgentState = Omit<GameState, 'version' | 'paused' | 'prestige' | 'wirePurchased' | 'lastTickSales' | 'lastTickRevenue' | 'lastAction' | 'economy' | 'earth' | 'space' | 'compute' | 'investment' | 'strategy' | 'projects' | 'phase'>
   & Partial<Pick<GameState, 'compute' | 'strategy' | 'space' | 'projects'>>
-  & { economy?: AgentEconomy; earth?: AgentEarth; investment?: AgentInvestment }
+  & { economy: AgentEconomy; earth?: AgentEarth; investment?: AgentInvestment }
 
 
 const investmentRiskModeSchema = z.enum(['low', 'med', 'hi']) as z.ZodType<InvestmentRiskMode>

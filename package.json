@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/main.ts",
-    "test": "vitest --run --silent"
+    "test": "vitest --run --silent",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   },
   "dependencies": {

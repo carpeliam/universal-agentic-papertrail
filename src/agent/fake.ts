@@ -30,8 +30,8 @@ function determinePhase(state: AgentState) {
   return 'boot'
 }
 async function summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
-  const first = transcript.at(0).prompt
-  const last  = transcript.at(-1).prompt
+  const first = transcript.at(0)!.prompt
+  const last  = transcript.at(-1)!.prompt
 
   const endState   = last.state
   const startState = first.state
@@ -106,14 +106,13 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
 }
 
 export default function createFakeAgent() {
-  fs.mkdirSync(path.dirname(SUMMARY_LOG_FILE), { recursive: true })
   fs.writeFileSync(SUMMARY_LOG_FILE, '', 'utf8')
 
   let tickCount = 0
   let capturedState: AgentState
   let project37PriceTarget: number
   let project38PriceTarget: number
-  const haveSeenProject = { project37: false, project38: false }
+  const haveSeenProject: Record<string, boolean> = { project37: false, project38: false }
 
   async function maker(prompt: AgentPrompt): Promise<AgentResponse> {
     await new Promise(resolve => setTimeout(resolve, 5))
@@ -158,14 +157,14 @@ export default function createFakeAgent() {
           return s.economy.clipPrice >= project38PriceTarget
         }
       },
-      project1:  { urgent: false, shouldExecute: s => s.compute.processors > 5 },         // Improved AutoClippers
-      project4:  { urgent: false, shouldExecute: s => !!s.projects.project34 },           // Even Better AutoClippers
-      project5:  { urgent: false, shouldExecute: s => !!s.projects.project34 },           // Optimized AutoClippers
+      project1:  { urgent: false, shouldExecute: s => s.compute!.processors > 5 },         // Improved AutoClippers
+      project4:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },           // Even Better AutoClippers
+      project5:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },           // Optimized AutoClippers
       project22: { urgent: false, shouldExecute: () => true },       // MegaClippers
       project23: { urgent: false, shouldExecute: () => true },       // Improved MegaClippers
       project24: { urgent: false, shouldExecute: () => true },       // Even Better MegaClippers
       project25: { urgent: false, shouldExecute: () => true },       // Optimized MegaClippers
-      project34: { urgent: false, shouldExecute: s => s.compute.operations > 12_000 },    // Hypno Harmonics
+      project34: { urgent: false, shouldExecute: s => s.compute!.operations > 12_000 },    // Hypno Harmonics
       project20: { urgent: false, shouldExecute: () => true },       // Strategic Modeling
       project21: { urgent: false, shouldExecute: () => true },       // Algorithmic Trading
       project60: { urgent: false, shouldExecute: () => true },       // New Strategy: A100
@@ -226,7 +225,7 @@ export default function createFakeAgent() {
       investWithdraw &&
       !needToKeepMoneyInStocks &&
       state.production.funds < state.economy.wireCost * 1.5 &&
-      state.investment.bankroll > 0
+      state.investment!.bankroll > 0
     ) {
       return { action: investWithdraw, reasoning: 'Funds too low for wire — withdrawing.' }
     }
@@ -250,10 +249,10 @@ export default function createFakeAgent() {
     const addProcessor = find('addProcessor')
     const addMemory = find('addMemory')
 
-    if (addProcessor && state.compute.processors < 6) {
+    if (addProcessor && state.compute!.processors < 6) {
       return { action: addProcessor, reasoning: 'Building up to 6 processors.' }
     }
-    if (addMemory && state.compute.processors >= 6) {
+    if (addMemory && state.compute!.processors >= 6) {
       return { action: addMemory, reasoning: 'Adding memory to accumulate ops.' }
     }
 
@@ -263,7 +262,7 @@ export default function createFakeAgent() {
     }
 
     const runTournament = find('runTournament')
-    if (runTournament) {
+    if (runTournament && state.compute) {
       const opsNearCap = state.compute.operations >= state.compute.memory * 1000 * 0.9
       const creativityFloor: Record<ReturnType<typeof determinePhase>, number> = { boot: 0, industry: 0, compute: 1000, expansion: 25000 }
       const shouldWaitForHypnoDrones = (
@@ -277,21 +276,23 @@ export default function createFakeAgent() {
 
     // ─── 5. INDUSTRY: PRODUCTION & PRICING ───────────────────────────────────
     if (['boot', 'compute', 'industry'].includes(phase)) {
-      if (
-        investWithdraw &&
-        !needToKeepMoneyInStocks &&
-        state.investment.bankroll > 0 &&
-        state.production.funds + state.investment.bankroll >= 1_000_000
-      ) {
-        return { action: investWithdraw, reasoning: 'Withdrawing to afford Hostile Takeover.' }
-      }
-      if (
-        investWithdraw &&
-        !state.projects?.project38 &&
-        state.investment.bankroll > 0 &&
-        state.production.funds + state.investment.bankroll >= 10_000_000
-      ) {
-        return { action: investWithdraw, reasoning: 'Withdrawing to afford Full Monopoly.' }
+      if (state.investment) {
+        if (
+          investWithdraw &&
+          !needToKeepMoneyInStocks &&
+          state.investment.bankroll > 0 &&
+          state.production.funds + state.investment.bankroll >= 1_000_000
+        ) {
+          return { action: investWithdraw, reasoning: 'Withdrawing to afford Hostile Takeover.' }
+        }
+        if (
+          investWithdraw &&
+          !state.projects?.project38 &&
+          state.investment.bankroll > 0 &&
+          state.production.funds + state.investment.bankroll >= 10_000_000
+        ) {
+          return { action: investWithdraw, reasoning: 'Withdrawing to afford Full Monopoly.' }
+        }
       }
 
       // Proactive wire buffer (below emergency floor but ahead of empty)
@@ -347,9 +348,9 @@ export default function createFakeAgent() {
           haveSeenProject[p] = true
         }
       })
-      const preparingForProject = Object.keys(haveSeenProject).some(findProject)
+      const preparingForProject = Object.keys(haveSeenProject).some(p => findProject(p as ProjectId))
       const targetInventorySeconds = 45
-      if (raisePrice && preparingForProject || (state.production.autoClippers > 0 && secondsOfInventory <= targetInventorySeconds / 2)) {
+      if (raisePrice && (preparingForProject || (state.production.autoClippers > 0 && secondsOfInventory <= targetInventorySeconds / 2))) {
         return {
           action: raisePrice,
           reasoning: preparingForProject ? 'Gotta get ready for a big project!' : 'Inventory lean — raising price.'
@@ -361,13 +362,13 @@ export default function createFakeAgent() {
     }
 
     // ─── 6. EXPANSION: DRONES & FACTORIES ────────────────────────────────────
-    if (phase === 'expansion') {
+    if (phase === 'expansion' && state.earth) {
       const buyBattery  = find('buyBattery')
       const buyWireDrone = find('buyWireDrone')
       const buyHarvester = find('buyHarvester')
       const buyFactory = find('buyFactory')
       const buyFarm = find('buyFarm')
-      const { earth } = state
+      const earth = state.earth as Required<typeof state.earth>
 
       // Bootstrap: need at least 1 of each in dependency order
       if (earth.farmLevel === 0 && buyFarm) {
@@ -389,7 +390,7 @@ export default function createFakeAgent() {
         return { action: { type: 'wait', turns: 1 }, reasoning: 'Not enough clips to build what we need, holding off until then.' }
       }
 
-      const prevEarth = previousState.earth
+      const prevEarth = previousState.earth as Required<NonNullable<typeof previousState.earth>>
 
       const powerConstrained = (additionalMW: number) =>
         earth.powerConsumptionRate + additionalMW >= earth.powerProductionRate
@@ -444,34 +445,35 @@ export default function createFakeAgent() {
     }
 
     // ─── 7. INVESTMENT ────────────────────────────────────────────────────────
-    const investDeposit = find('investDeposit')
-    const investUpgrade = find('investUpgrade')
-    const secondsOfInventory = state.production.unsoldClips / state.economy.demand
-
-    const depositFrequency = state.investment?.riskMode === 'hi' ? 3 : state.investment?.riskMode === 'med' ? 5 : 10
-    if (
-      investDeposit &&
-      state.production.wire > state.economy.demand * 3 &&
-      secondsOfInventory >= 3 &&
-      tickCount % depositFrequency === 0
-    ) {
-      return { action: investDeposit, reasoning: 'Conditions good — depositing funds.' }
-    }
-
-    if (
-      investUpgrade &&
-      state.investment.investLevel < 14 &&
-      state.strategy.yomi >= state.investment.investUpgradeCost.amount
-    ) {
-      return { action: investUpgrade, reasoning: 'Upgrading investment engine.' }
-    }
-
-    if (['boot', 'compute', 'industry'].includes(phase)) {
-      if (findRisk('hi') && state.investment.investLevel >= 5 && state.investment.riskMode === 'med') {
-        return { action: findRisk('hi'), reasoning: 'Switching to high risk at level 5+.' }
+    if (state.investment && state.economy) {
+      const investDeposit = find('investDeposit')
+      const investUpgrade = find('investUpgrade')
+      const secondsOfInventory = state.production.unsoldClips / state.economy.demand
+      const depositFrequency = state.investment.riskMode === 'hi' ? 3 : state.investment.riskMode === 'med' ? 5 : 10
+      if (
+        investDeposit &&
+        state.production.wire > state.economy.demand * 3 &&
+        secondsOfInventory >= 3 &&
+        tickCount % depositFrequency === 0
+      ) {
+        return { action: investDeposit, reasoning: 'Conditions good — depositing funds.' }
       }
-      if (findRisk('med') && state.investment.investLevel >= 3 && state.investment.riskMode === 'low') {
-        return { action: findRisk('med')!, reasoning: 'Switching to medium risk at level 3+.' }
+
+      if (
+        investUpgrade && state.strategy &&
+        state.investment.investLevel < 14 &&
+        state.strategy.yomi >= state.investment.investUpgradeCost.amount
+      ) {
+        return { action: investUpgrade, reasoning: 'Upgrading investment engine.' }
+      }
+
+      const highRisk = findRisk('hi')
+      if (highRisk && state.investment.investLevel >= 5 && state.investment.riskMode === 'med') {
+        return { action: highRisk, reasoning: 'Switching to high risk at level 5+.' }
+      }
+      const mediumRisk = findRisk('med')
+      if (mediumRisk && state.investment.investLevel >= 3 && state.investment.riskMode === 'low') {
+        return { action: mediumRisk, reasoning: 'Switching to medium risk at level 3+.' }
       }
       if (
         investWithdraw &&
@@ -481,11 +483,11 @@ export default function createFakeAgent() {
       ) {
         return { action: investWithdraw, reasoning: 'Opportunistic withdraw to put gains to work.' }
       }
+    }
 
-      const makeClip = find('makeClip')
-      if (makeClip) {
-        return { action: makeClip, reasoning: 'Making clips is how we win! ...Right?' }
-      }
+    const makeClip = find('makeClip')
+    if (makeClip && ['boot', 'compute', 'industry'].includes(phase)) {
+      return { action: makeClip, reasoning: 'Making clips is how we win! ...Right?' }
     }
 
     const fallback = available[0]

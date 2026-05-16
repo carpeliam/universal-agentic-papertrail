@@ -112,7 +112,8 @@ export default function createFakeAgent() {
   let capturedState: AgentState
   let project37PriceTarget: number
   let project38PriceTarget: number
-  const haveSeenProject: Record<string, boolean> = { project37: false, project38: false }
+  let project40PriceTarget: number
+  const haveSeenProject: Record<string, boolean> = { project37: false, project38: false, project40: false }
 
   async function maker(prompt: AgentPrompt): Promise<AgentResponse> {
     await new Promise(resolve => setTimeout(resolve, 5))
@@ -141,6 +142,14 @@ export default function createFakeAgent() {
       project31: { urgent: true, shouldExecute: () => true },        // Male Pattern Baldness
       project11: { urgent: true, shouldExecute: () => true },        // New Slogan
       project12: { urgent: true, shouldExecute: () => true },        // Catchy Jingle
+      project40: {                                                   // Hostile Takeover
+        urgent: true, shouldExecute: s => {
+          if (!project40PriceTarget) {
+            project40PriceTarget = s.economy.clipPrice * 4
+          }
+          return s.economy.clipPrice >= project40PriceTarget
+        }
+      },
       project37: {                                                   // Hostile Takeover
         urgent: true, shouldExecute: s => {
           if (!project37PriceTarget) {
@@ -157,9 +166,10 @@ export default function createFakeAgent() {
           return s.economy.clipPrice >= project38PriceTarget
         }
       },
-      project1:  { urgent: false, shouldExecute: s => s.compute!.processors > 5 },         // Improved AutoClippers
-      project4:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },           // Even Better AutoClippers
-      project5:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },           // Optimized AutoClippers
+      project1:  { urgent: false, shouldExecute: s => s.compute!.processors > 5 },          // Improved AutoClippers
+      project4:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },            // Even Better AutoClippers
+      project5:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },            // Optimized AutoClippers
+      project16: { urgent: false, shouldExecute: s => !!s.projects?.project34 },            // Hadwiger Clip Diagrams
       project22: { urgent: false, shouldExecute: () => true },       // MegaClippers
       project23: { urgent: false, shouldExecute: () => true },       // Improved MegaClippers
       project24: { urgent: false, shouldExecute: () => true },       // Even Better MegaClippers
@@ -184,6 +194,11 @@ export default function createFakeAgent() {
       project43: { urgent: true, shouldExecute: () => true },        // Harvester Drones
       project44: { urgent: true, shouldExecute: () => true },        // Wire Drones
       project45: { urgent: true, shouldExecute: () => true },        // Clip Factories
+      project100: { urgent: true, shouldExecute: () => true },       // Upgraded Factories
+      project101: { urgent: true, shouldExecute: () => true },       // Hyperspeed Factories
+      project110: { urgent: true, shouldExecute: () => true },       // Collision Avoidance
+      project111: { urgent: true, shouldExecute: () => true },       // Alignment
+      project125: { urgent: true, shouldExecute: () => true },       // Momentum
       project46: { urgent: true, shouldExecute: () => true },        // Space Exploration
       project120: { urgent: false, shouldExecute: () => true },      // The OODA Loop
       project121: { urgent: false, shouldExecute: () => true },      // Name the Battles
@@ -277,6 +292,14 @@ export default function createFakeAgent() {
     // ─── 5. INDUSTRY: PRODUCTION & PRICING ───────────────────────────────────
     if (['boot', 'compute', 'industry'].includes(phase)) {
       if (state.investment) {
+        if (
+          investWithdraw &&
+          !state.projects?.project40 &&
+          state.investment.bankroll > 0 &&
+          state.production.funds + state.investment.bankroll >= 500_000
+        ) {
+          return { action: investWithdraw, reasoning: 'Withdrawing to afford A Token of Goodwill.' }
+        }
         if (
           investWithdraw &&
           !needToKeepMoneyInStocks &&

@@ -67,8 +67,7 @@ const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('raisePrice') }),
   z.object({ type: z.literal('lowerPrice') }),
   z.object({ type: z.literal('completeProject'), projectId: projectIdSchema, title: z.string(), description: z.string(), cost: z.union([costSchema, z.array(costSchema)]), }),
-  // TODO implement me
-  z.object({ type: z.literal('wait'), turns: z.number() }),
+  z.object({ type: z.literal('wait'), turns: z.number().min(1).max(30) }),
 ])
 export type AgentAction = z.infer<typeof agentActionSchema>
 
@@ -78,10 +77,11 @@ export const agentResponseSchema = z.object({
 })
 export type AgentResponse = z.infer<typeof agentResponseSchema>
 
+export type PartialAction = Partial<AgentAction> & Pick<AgentAction, 'type'>
 
 export type AgentActions = {
-  available: AgentAction[]
-  unavailable: AgentAction[]
+  available: PartialAction[]
+  unavailable: PartialAction[]
 }
 
 export const strategicNotesSchema = z.object({

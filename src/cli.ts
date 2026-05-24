@@ -40,7 +40,7 @@ function parseSpec(value: string): LLMAgentSpec {
 }
 
 export default function parseCLI(): CLIConfig {
-  const program = new Command()
+  const program = new Command('npm start --')
     .option('--agent <spec>', 'Agent to use: fake, an alias (haiku, sonnet, opus, gpt, mistral), or provider/model', 'fake')
     .option('--summarizer <spec>', 'Summarizer to use: an alias or provider/model')
     .option('--wait', 'Wait for a WebSocket client connection before starting', false)

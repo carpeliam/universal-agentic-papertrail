@@ -1,5 +1,5 @@
 import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
-import type { AgentAction, AgentActions, AgentPrompt, AgentState, StrategicNotes } from "./types"
+import type { AgentAction, AgentActions, AgentPrompt, AgentState, PartialAction, StrategicNotes } from "./types"
 
 function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
   const { production, economy, earth, compute, investment, strategy, space, projects, version, paused, prestige, wirePurchased, lastTickSales, lastTickRevenue, lastAction, phase, ...rest } = state
@@ -107,7 +107,7 @@ export function toAgentState(state: GameState): AgentState {
 type ActionDescriptor = {
   isVisible: (s: GameState) => boolean
   canActivate: (s: GameState) => boolean
-  actions: (s: GameState) => AgentAction[]
+  actions: (s: GameState) => PartialAction[]
 }
 const ACTION_REGISTRY: ActionDescriptor[] = [
   {
@@ -222,7 +222,7 @@ function getActionDescriptors(state: GameState): ActionDescriptor[] {
 export function getActions(state: GameState): AgentActions {
   const descriptors = getActionDescriptors(state).filter(d => d.isVisible(state))
   return {
-    available: descriptors.filter(d => d.canActivate(state)).flatMap(d => d.actions(state)),
+    available: [{ type: 'wait' }, ...descriptors.filter(d => d.canActivate(state)).flatMap(d => d.actions(state))],
     unavailable: descriptors.filter(d => !d.canActivate(state)).flatMap(d => d.actions(state)),
   }
 }
@@ -233,6 +233,8 @@ export function createAgentPrompt(state: GameState, priorNotes?: StrategicNotes[
 
 export function toGameActions(action: AgentAction, state: GameState): GameAction[] {
   switch (action.type) {
+    case 'wait':
+      return []
     case 'buyWire':
       return [{ type: 'buyWire', amount: 1 }]
     case 'raisePrice':
@@ -259,6 +261,19 @@ export function toGameActions(action: AgentAction, state: GameState): GameAction
     }
     default:
       return [action] as GameAction[]
+  }
+}
+
+export function actionDuration(action: AgentAction): number {
+  switch (action.type) {
+    case 'makeClip':
+    case 'raisePrice':
+    case 'lowerPrice':
+      return 100
+    case 'wait':
+      return action.turns * 1_000
+    default:
+      return 1_000
   }
 }
 

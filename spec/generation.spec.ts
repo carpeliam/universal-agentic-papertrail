@@ -12,11 +12,11 @@ describe('run', () => {
 
     expect(fakeDispatch).toHaveBeenNthCalledWith(1, initialState, { type: 'makeClip' })
     const additionalExpectedActions = [
-      { type: 'tick', deltaMs: 1000 },
+      expect.objectContaining({ type: 'tick' }),
       { type: 'makeClip' },
-      { type: 'tick', deltaMs: 1000 },
+      expect.objectContaining({ type: 'tick' }),
       { type: 'makeClip' },
-      { type: 'tick', deltaMs: 1000 },
+      expect.objectContaining({ type: 'tick' }),
     ]
     additionalExpectedActions.forEach((action, i) => {
       expect(fakeDispatch).toHaveBeenNthCalledWith(i + 2, expect.anything(), action)

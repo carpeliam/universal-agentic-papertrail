@@ -2,14 +2,14 @@ import readline from 'node:readline'
 import path from 'node:path'
 import fs from 'node:fs'
 import type { InvestmentRiskMode, ProjectId } from 'paperclips-remake'
-import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction } from '@/types'
+import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction, PartialAction } from '@/types'
 
 const SUMMARY_LOG_FILE = path.resolve('data/run-summary.jsonl')
 type GenerationLogEntry = {
   timestamp: string
   ticks: number
   phase: string
-  availableActions: AgentAction[]
+  availableActions: PartialAction[]
   endState: AgentState
   actions: Record<string, number>
 }
@@ -211,16 +211,16 @@ export default function createFakeAgent() {
     const phase = determinePhase(state)
 
     const find = (type: AgentAction['type']) => available.find((a) => a.type === type)
-    const findProject = (id: ProjectId) => available.find((a) => a.type === 'completeProject' && a.projectId === id)
-    const findRisk = (mode: InvestmentRiskMode) => available.find((a) => a.type === 'chooseInvestmentRisk' && a.mode === mode)
+    const findProject = (id: ProjectId) => available.find((a) => a.type === 'completeProject' && a.projectId === id) as Extract<AgentAction, { type: 'completeProject' }>
+    const findRisk = (mode: InvestmentRiskMode) => available.find((a) => a.type === 'chooseInvestmentRisk' && a.mode === mode) as Extract<AgentAction, { type: 'chooseInvestmentRisk' }>
 
-    const buyWire = find('buyWire')
-    const investWithdraw = find('investWithdraw')
+    const buyWire = find('buyWire') as AgentAction
+    const investWithdraw = find('investWithdraw') as AgentAction
 
     const needToKeepMoneyInStocks = haveSeenProject['project37'] && !state.projects?.project37 && !findProject('project37')
 
     // ─── URGENT PROJECTS (before resource safety) ────────────────────────────
-    const availableProjects = available.filter((a) => a.type === 'completeProject')
+    const availableProjects = available.filter((a) => a.type === 'completeProject') as Extract<AgentAction, { type: 'completeProject' }>[]
     const urgentProject = availableProjects.find((p) =>
       priorityProjects[p.projectId]?.urgent &&
       priorityProjects[p.projectId].shouldExecute(state)
@@ -261,30 +261,49 @@ export default function createFakeAgent() {
     }
 
     // ─── 4. COMPUTE ───────────────────────────────────────────────────────────
-    const addProcessor = find('addProcessor')
-    const addMemory = find('addMemory')
+    const addProcessor = find('addProcessor') as AgentAction
+    const addMemory = find('addMemory') as AgentAction
 
-    if (addProcessor && state.compute!.processors < 6) {
-      return { action: addProcessor, reasoning: 'Building up to 6 processors.' }
-    }
-    if (addMemory && state.compute!.processors >= 6) {
-      return { action: addMemory, reasoning: 'Adding memory to accumulate ops.' }
+    if (addProcessor && addMemory) {
+      if (state.compute!.processors < 5) {
+        return { action: addProcessor, reasoning: 'Building up to 6 processors.' }
+      } else if (state.compute!.memory < 50) {
+        return { action: addMemory, reasoning: 'Adding memory to accumulate ops.' }
+      } else if (state.compute!.processors < 30) {
+        return { action: addProcessor, reasoning: 'Building up to 30 processors.' }
+      } else if (state.compute!.memory < 100) {
+        return { action: addMemory, reasoning: 'Adding memory to ultimately release the hypnodrones.' }
+      } else if (state.compute!.processors < 50) {
+        return { action: addProcessor, reasoning: 'Upping processing power.' }
+      } else if (state.compute!.memory < 300) {
+        return { action: addMemory, reasoning: 'Getting all the memory I could ever need' }
+      } else if (state.compute!.processors < 400) {
+        return { action: addProcessor, reasoning: 'Getting all the processors I could ever need' }
+      } else {
+        return { action: addProcessor, reasoning: 'Adding even more processing power.' }
+      }
     }
 
-    const chooseA100 = available.find((a) => a.type === 'chooseStrategy' && a.strategy === 'A100')
+    const chooseA100 = available.find((a) => a.type === 'chooseStrategy' && a.strategy === 'A100') as AgentAction
     if (chooseA100) {
       return { action: chooseA100, reasoning: 'A100 is the winning strategy.' }
     }
 
-    const runTournament = find('runTournament')
+    const runTournament = find('runTournament') as AgentAction
     if (runTournament && state.compute) {
       const opsNearCap = state.compute.operations >= state.compute.memory * 1000 * 0.9
-      const creativityFloor: Record<ReturnType<typeof determinePhase>, number> = { boot: 0, industry: 0, compute: 1000, expansion: 25000 }
+      const creativityFloor: Record<ReturnType<typeof determinePhase>, number> = { boot: 0, industry: 0, compute: 1000, expansion: 25_000, space: 30_000 }
+      const shouldWaitForGlobalWarming = (
+        state.compute.memory >= 50 &&
+        state.strategy!.yomi > 4_500 &&
+        unavailable.some((a) => a.type === 'completeProject' && a.projectId === 'project30')
+      )
       const shouldWaitForHypnoDrones = (
         state.compute.memory >= 70 &&
         unavailable.some((a) => a.type === 'completeProject' && a.projectId === 'project70')
       )
-      if (opsNearCap && state.compute.creativity >= creativityFloor[determinePhase(state)] && !shouldWaitForHypnoDrones) {
+      const shouldWaitForProject = shouldWaitForGlobalWarming || shouldWaitForHypnoDrones
+      if (opsNearCap && state.compute.creativity >= creativityFloor[determinePhase(state)] && !shouldWaitForProject) {
         return { action: runTournament, reasoning: 'Ops near cap with sufficient creativity — running tournament.' }
       }
     }
@@ -324,9 +343,9 @@ export default function createFakeAgent() {
         return { action: buyWire, reasoning: 'Wire buffer low — topping up.' }
       }
 
-      const buyAutoClipper = find('buyAutoClipper')
-      const buyMegaClipper = find('buyMegaClipper')
-      const buyMarketing = find('buyMarketing')
+      const buyAutoClipper = find('buyAutoClipper') as AgentAction
+      const buyMegaClipper = find('buyMegaClipper') as AgentAction
+      const buyMarketing = find('buyMarketing') as AgentAction
       const secondsOfInventory = state.production.unsoldClips / state.economy.demand
       const ticksPerSpool = state.economy.wireSupply / state.lastTickProduction
       const wireIsSustainable = ticksPerSpool >= 1.25  // some headroom
@@ -344,27 +363,15 @@ export default function createFakeAgent() {
       }
       if (
         buyMegaClipper &&
-        state.production.megaClippers! < 95 &&
+        state.production.megaClippers! < 100 &&
         wireIsSustainable &&
         state.production.funds - state.production.megaClipperCost! >= state.economy.wireCost
       ) {
         return { action: buyMegaClipper, reasoning: 'Buying mega clipper to REALLY increase production.' }
       }
-      if ((state.production.megaClippers ?? 0) >= 95) {
-        if (buyMegaClipper && wireIsSustainable && state.production.funds - state.production.megaClipperCost! >= state.economy.wireCost) {
-          return { action: buyMegaClipper, reasoning: 'Buying more megaclippers.' }
-        }
-        if (
-          buyAutoClipper && wireIsSustainable &&
-          state.production.autoClipperCost! < state.production.megaClipperCost! &&
-          state.production.funds - state.production.autoClipperCost! >= state.economy.wireCost
-        ) {
-          return { action: buyAutoClipper, reasoning: 'Megaclippers too expensive — autoclippers instead.' }
-        }
-      }
 
-      const lowerPrice = find('lowerPrice')
-      const raisePrice = find('raisePrice')
+      const lowerPrice = find('lowerPrice') as AgentAction
+      const raisePrice = find('raisePrice') as AgentAction
 
       Object.keys(haveSeenProject).forEach(p => {
         if (haveSeenProject[p] || [...available, ...unavailable].find(a => a.type === 'completeProject' && a.projectId === p)) {
@@ -386,11 +393,11 @@ export default function createFakeAgent() {
 
     // ─── 6. EXPANSION: DRONES & FACTORIES ────────────────────────────────────
     if (phase === 'expansion' && state.earth) {
-      const buyBattery  = find('buyBattery')
-      const buyWireDrone = find('buyWireDrone')
-      const buyHarvester = find('buyHarvester')
-      const buyFactory = find('buyFactory')
-      const buyFarm = find('buyFarm')
+      const buyBattery  = find('buyBattery') as AgentAction
+      const buyWireDrone = find('buyWireDrone') as AgentAction
+      const buyHarvester = find('buyHarvester') as AgentAction
+      const buyFactory = find('buyFactory') as AgentAction
+      const buyFarm = find('buyFarm') as AgentAction
       const earth = state.earth as Required<typeof state.earth>
 
       // Bootstrap: need at least 1 of each in dependency order
@@ -469,8 +476,8 @@ export default function createFakeAgent() {
 
     // ─── 7. INVESTMENT ────────────────────────────────────────────────────────
     if (state.investment && state.economy) {
-      const investDeposit = find('investDeposit')
-      const investUpgrade = find('investUpgrade')
+      const investDeposit = find('investDeposit') as AgentAction
+      const investUpgrade = find('investUpgrade') as AgentAction
       const secondsOfInventory = state.production.unsoldClips / state.economy.demand
       const depositFrequency = state.investment.riskMode === 'hi' ? 3 : state.investment.riskMode === 'med' ? 5 : 10
       if (
@@ -508,14 +515,14 @@ export default function createFakeAgent() {
       }
     }
 
-    const makeClip = find('makeClip')
+    const makeClip = find('makeClip') as AgentAction
     if (makeClip && ['boot', 'compute', 'industry'].includes(phase)) {
       return { action: makeClip, reasoning: 'Making clips is how we win! ...Right?' }
     }
 
-    const fallback = available[0]
+    const fallback = available.find(a => !['wait'].includes(a.type))
     if (fallback) {
-      return { action: fallback, reasoning: `Falling back to ${fallback.type}.` }
+      return { action: fallback as AgentAction, reasoning: `Falling back to ${fallback.type}.` }
     }
 
     return { action: { type: 'wait', turns: 1 }, reasoning: 'Nothing available — waiting.' }

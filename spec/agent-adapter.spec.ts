@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { createInitialGameState, type GamePhase, type GameState } from "paperclips-remake"
-import { getActions, toAgentState, toGameActions } from "@/agent-adapter"
+import { actionDuration, getActions, toAgentState, toGameActions } from "@/agent-adapter"
 import { applyExpansionState, applySpaceState } from "./helper"
 
 describe('toAgentState', () => {
@@ -179,6 +179,11 @@ describe('toAgentState', () => {
 })
 
 describe('getActions', () => {
+  it('always includes waiting as a posibility', () => {
+    const state = createInitialGameState()
+    const actions = getActions(state)
+    expect(actions.available).toContainEqual({type: 'wait'})
+  })
   it('can make a clip at game start', () => {
     const state = createInitialGameState()
     const actions = getActions(state)
@@ -501,6 +506,10 @@ describe('getActions', () => {
 
 // TODO we have other actions to manage here before we're done
 describe('toGameActions', () => {
+  it('returns an empty set of game actions when waiting', () => {
+    expect(toGameActions({ type: 'wait', turns: 5 }, createInitialGameState())).toHaveLength(0)
+  })
+
   it('fills in the wire amount for buyWire', () => {
     const initialState = createInitialGameState()
     const gameActions = toGameActions({ type: 'buyWire' }, initialState)
@@ -576,5 +585,17 @@ describe('toGameActions', () => {
     }
     const actions = toGameActions({ type: 'lowerPrice' }, state)
     expect(actions).toContainEqual({ type: 'setPrice', price: 0.49 })
+  })
+})
+
+describe('actionDuration', () => {
+  it('returns 100ms for quick actions', () => {
+    expect(actionDuration({ type: 'makeClip' })).toEqual(100)
+  })
+  it('waits {turn} seconds for wait actions', () => {
+    expect(actionDuration({ type: 'wait', turns: 5 })).toEqual(5_000)
+  })
+  it('returns 1,000ms for all other actions', () => {
+    expect(actionDuration({ type: 'runTournament' })).toEqual(1_000)
   })
 })

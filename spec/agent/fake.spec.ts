@@ -21,6 +21,7 @@ describe('fake agent', () => {
   const buyFactory: AgentAction = { type: 'buyFactory' }
   const buyBattery: AgentAction = { type: 'buyBattery' }
   const wait: AgentAction = { type: 'wait', turns: 1 }
+  const dummy = { type: 'dummy' } as unknown as AgentAction
 
   it('completes project2 (wire begging) when it is available', async () => {
     const state = createInitialGameState()
@@ -45,18 +46,18 @@ describe('fake agent', () => {
     expect(result.action).toEqual(action)
   })
 
-  it('adds a processor when fewer than 6 are owned', async () => {
+  it('adds a processor when fewer than 5 are owned', async () => {
     const initialState = createInitialGameState()
     const state = toAgentState({
       ...initialState,
-      compute: { ...initialState.compute, unlocked: true, processors: 5 },
+      compute: { ...initialState.compute, unlocked: true, processors: 4 },
     })
     const { maker } = createFakeAgent()
 
     const result = await maker({
       state,
       actions: {
-        available: [wait, addProcessor],
+        available: [dummy, addProcessor, addMemory],
         unavailable: [],
       },
     })
@@ -75,7 +76,7 @@ describe('fake agent', () => {
     const result = await maker({
       state,
       actions: {
-        available: [addMemory],
+        available: [dummy, addProcessor, addMemory],
         unavailable: [],
       },
     })
@@ -94,7 +95,7 @@ describe('fake agent', () => {
     }
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, buyMarketing], unavailable: [] }
+      actions: { available: [dummy, buyMarketing], unavailable: [] }
     })
     expect(action).toEqual(buyMarketing)
   })
@@ -277,7 +278,7 @@ describe('fake agent', () => {
     const state = applyComputeState({ compute: { creativity: 1000, operations: 90000, memory: 100 } })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, runTournament], unavailable: [] }
+      actions: { available: [dummy, runTournament], unavailable: [] }
     })
     expect(action).toEqual(runTournament)
   })
@@ -287,7 +288,7 @@ describe('fake agent', () => {
     const state = applyComputeState({ compute: { creativity: 0 } })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, runTournament], unavailable: [] }
+      actions: { available: [dummy, runTournament], unavailable: [] }
     })
     expect(action).not.toEqual(runTournament)
   })
@@ -297,7 +298,7 @@ describe('fake agent', () => {
     const state = applyComputeState({ compute: { creativity: 1000, operations: 89999, memory: 100 } })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, runTournament], unavailable: [] }
+      actions: { available: [dummy, runTournament], unavailable: [] }
     })
     expect(action).not.toEqual(runTournament)
   })
@@ -309,7 +310,7 @@ describe('fake agent', () => {
     const state = applyComputeState({ compute: { creativity: 1000, memory: 70 } })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, runTournament], unavailable: [hypnoDrones] }
+      actions: { available: [dummy, runTournament], unavailable: [hypnoDrones] }
     })
     expect(action).not.toEqual(runTournament)
   })
@@ -319,7 +320,7 @@ describe('fake agent', () => {
     const state = applyExpansionState({ compute: { creativity: 5000 } })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, runTournament], unavailable: [] }
+      actions: { available: [dummy, runTournament], unavailable: [] }
     })
     expect(action).not.toEqual(runTournament)
   })
@@ -336,7 +337,7 @@ describe('fake agent', () => {
     })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyFarm)
   })
@@ -357,7 +358,7 @@ describe('fake agent', () => {
     })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyFarm)
   })
@@ -381,7 +382,7 @@ describe('fake agent', () => {
     })
     const { action } = await maker({
       state: toAgentState(state),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyBattery)
   })
@@ -402,7 +403,7 @@ describe('fake agent', () => {
           acquiredMatter: 5,
         }
       })),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     const { action } = await maker({
       state: toAgentState(applyExpansionState({
@@ -417,7 +418,7 @@ describe('fake agent', () => {
           acquiredMatter: 4,
         }
       })),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyHarvester)
   })
@@ -437,7 +438,7 @@ describe('fake agent', () => {
           acquiredMatter: 100,
         }
       })),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     const { action } = await maker({
       state: toAgentState(applyExpansionState({
@@ -452,7 +453,7 @@ describe('fake agent', () => {
           acquiredMatter: 100,
         }
       })),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyWireDrone)
   })
@@ -473,7 +474,7 @@ describe('fake agent', () => {
           acquiredMatter: 100,
         }
       })),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     const { action } = await maker({
       state: toAgentState(applyExpansionState({
@@ -488,10 +489,8 @@ describe('fake agent', () => {
           acquiredMatter: 100,
         }
       })),
-      actions: { available: [wait, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
+      actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
     expect(action).toEqual(buyFactory)
   })
-
-
 })

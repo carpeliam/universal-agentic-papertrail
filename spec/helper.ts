@@ -17,6 +17,7 @@ export function applyComputeState(overrides: DeepPartial<GameState> = {}): GameS
     strategy: { ...base.strategy, unlocked: true, ...strategy } as GameState['strategy'],
     earth: { ...base.earth, ...earth } as GameState['earth'],
     space: { ...base.space, ...space } as GameState['space'],
+    projects: { ...base.projects, ...projects } as GameState['projects'],
   }
 }
 export function applyExpansionState(overrides: DeepPartial<GameState> = {}): GameState {

@@ -112,7 +112,7 @@ type ActionDescriptor = {
 const ACTION_REGISTRY: ActionDescriptor[] = [
   {
     isVisible: () => true,
-    canActivate: (s) => s.production.wire > 0,
+    canActivate: (s) => s.production.wire > 0 && s.earth.humanFlag,
     actions: () => [{ type: 'makeClip' }],
   },
   {

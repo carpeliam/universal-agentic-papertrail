@@ -586,6 +586,26 @@ describe('toGameActions', () => {
     const actions = toGameActions({ type: 'lowerPrice' }, state)
     expect(actions).toContainEqual({ type: 'setPrice', price: 0.49 })
   })
+
+  it('translates probe trust allocation targets', () => {
+    const spaceState = applySpaceState()
+    let actions = toGameActions({ type: 'assignProbeTrust', target: 'speed' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'speed' })
+    actions = toGameActions({ type: 'assignProbeTrust', target: 'exploration' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'nav' })
+    actions = toGameActions({ type: 'assignProbeTrust', target: 'self_replication' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'rep' })
+    actions = toGameActions({ type: 'assignProbeTrust', target: 'hazard_remediation' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'haz' })
+    actions = toGameActions({ type: 'assignProbeTrust', target: 'factory' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'fac' })
+    actions = toGameActions({ type: 'assignProbeTrust', target: 'harvester' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'harv' })
+    actions = toGameActions({ type: 'assignProbeTrust', target: 'wire_drone' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'wire' })
+    actions = toGameActions({ type: 'assignProbeTrust', target: 'combat' }, spaceState)
+    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'combat' })
+  })
 })
 
 describe('actionDuration', () => {

@@ -44,6 +44,8 @@ export type AgentState = Pick<GameState, 'elapsedMs' | 'lastTickProduction'> & P
 const investmentRiskModeSchema = z.enum(['low', 'med', 'hi']) as z.ZodType<InvestmentRiskMode>
 const strategySelectionSchema = z.enum(['NONE', 'RANDOM', 'A100', 'B100', 'GREEDY', 'GENEROUS', 'MINIMAX', 'TIT_FOR_TAT', 'BEAT_LAST']) as z.ZodType<StrategySelection>
 const projectIdSchema = z.string() as z.ZodType<ProjectId>
+const probeTrustTargetSchema = z.enum(['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone', 'combat'])
+export type ProbeTrustTarget = z.infer<typeof probeTrustTargetSchema>
 
 const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('makeClip') }),
@@ -53,6 +55,10 @@ const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('buyWireDrone') }),
   z.object({ type: z.literal('buyFarm') }),
   z.object({ type: z.literal('buyBattery') }),
+  z.object({ type: z.literal('launchProbe') }),
+  z.object({ type: z.literal('increaseProbeTrust') }),
+  z.object({ type: z.literal('increaseMaxTrust') }),
+  z.object({ type: z.literal('assignProbeTrust'), target: probeTrustTargetSchema }),
   z.object({ type: z.literal('buyMarketing') }),
   z.object({ type: z.literal('buyAutoClipper') }),
   z.object({ type: z.literal('buyMegaClipper') }),

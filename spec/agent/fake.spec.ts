@@ -3,7 +3,7 @@ import { createInitialGameState, GameState } from "paperclips-remake"
 import createFakeAgent from "@/agent/fake"
 import type { AgentAction } from "@/types"
 import { getActions, toAgentState } from "@/agent-adapter"
-import { applyComputeState, applyExpansionState } from "../helper"
+import { applyComputeState, applyExpansionState, applyIndustryState } from "../helper"
 
 describe('fake agent', () => {
   const makeClip: AgentAction = { type: 'makeClip' }
@@ -207,8 +207,8 @@ describe('fake agent', () => {
   })
 
   it('waits when no actions are available', async () => {
-    const initialState = createInitialGameState()
     const { maker } = createFakeAgent()
+    const initialState = createInitialGameState()
 
     const result = await maker({
       state: toAgentState(initialState),
@@ -221,25 +221,21 @@ describe('fake agent', () => {
     expect(result.action).toEqual(wait)
   })
 
-  it('lowers price when unsold inventory exceeds 10 ticks of demand', async () => {
-    const initialState = createInitialGameState()
-    const state = toAgentState({
-      ...initialState,
+  it('lowers price when unsold inventory exceeds 90 ticks of demand', async () => {
+    const { maker } = createFakeAgent()
+    const state = toAgentState(applyIndustryState({
       production: {
-        ...initialState.production,
-        unsoldClips: 1001,
+        unsoldClips: 9_001,
       },
       economy: {
-        ...initialState.economy,
         demand: 100,
       },
-    })
-    const { maker } = createFakeAgent()
+    }))
 
     const result = await maker({
       state,
       actions: {
-        available: [lowerPrice, buyWire],
+        available: [dummy, lowerPrice, buyWire],
         unavailable: [],
       },
     })
@@ -247,25 +243,22 @@ describe('fake agent', () => {
     expect(result.action).toEqual(lowerPrice)
   })
 
-  it('raises price when unsold inventory is below 3 ticks of demand', async () => {
-    const initialState = createInitialGameState()
-    const state = toAgentState({
-      ...initialState,
+  it('raises price when unsold inventory is below 45/2 ticks of demand', async () => {
+    const { maker } = createFakeAgent()
+    const state = toAgentState(applyIndustryState({
       production: {
-        ...initialState.production,
-        unsoldClips: 299,
+        autoClippers: 1,
+        unsoldClips: 110,
       },
       economy: {
-        ...initialState.economy,
-        demand: 100,
+        demand: 5,
       },
-    })
-    const { maker } = createFakeAgent()
+    }))
 
     const result = await maker({
       state,
       actions: {
-        available: [raisePrice, buyWire],
+        available: [dummy, raisePrice, buyWire],
         unavailable: [],
       },
     })

@@ -18,6 +18,9 @@ function writeLogSummary(entry: GenerationLogEntry): void {
 }
 
 function determinePhase(state: AgentState) {
+  if (state.projects?.project46) {
+    return 'space'
+  }
   if (state.projects?.project35) {
     return 'expansion'
   }
@@ -346,7 +349,7 @@ export default function createFakeAgent() {
       const buyAutoClipper = find('buyAutoClipper') as AgentAction
       const buyMegaClipper = find('buyMegaClipper') as AgentAction
       const buyMarketing = find('buyMarketing') as AgentAction
-      const secondsOfInventory = state.production.unsoldClips / state.economy.demand
+      const ticksOfInventory = state.production.unsoldClips / state.economy.demand
       const ticksPerSpool = state.economy.wireSupply / state.lastTickProduction
       const wireIsSustainable = ticksPerSpool >= 1.25  // some headroom
 
@@ -379,14 +382,14 @@ export default function createFakeAgent() {
         }
       })
       const preparingForProject = Object.keys(haveSeenProject).some(p => findProject(p as ProjectId))
-      const targetInventorySeconds = 45
-      if (raisePrice && (preparingForProject || ((state.production.autoClippers ?? 0) > 0 && secondsOfInventory <= targetInventorySeconds / 2))) {
+      const targetTicksOfInventory = 45
+      if (raisePrice && (preparingForProject || ((state.production.autoClippers ?? 0) > 0 && ticksOfInventory <= targetTicksOfInventory / 2))) {
         return {
           action: raisePrice,
           reasoning: preparingForProject ? 'Gotta get ready for a big project!' : 'Inventory lean — raising price.'
         }
       }
-      if (lowerPrice && !preparingForProject && secondsOfInventory > targetInventorySeconds * 2) {
+      if (lowerPrice && !preparingForProject && ticksOfInventory > targetTicksOfInventory * 2) {
         return { action: lowerPrice, reasoning: 'Too much inventory — lowering price.' }
       }
     }

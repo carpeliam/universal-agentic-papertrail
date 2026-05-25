@@ -1,14 +1,13 @@
 import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
-import type { AgentAction, AgentActions, AgentPrompt, AgentState, PartialAction, StrategicNotes } from "./types"
+import type { AgentAction, AgentActions, AgentPrompt, AgentState, PartialAction, ProbeTrustTarget, StrategicNotes } from "./types"
 
 function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
-  const { production, economy, earth, compute, investment, strategy, space, projects, version, paused, prestige, wirePurchased, lastTickSales, lastTickRevenue, lastAction, phase, ...rest } = state
-  const { autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = production
+  const { autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = state.production
   return {
     production: {
       ...productionFields,
-      ...(phase !== 'boot' && earth.humanFlag && { autoClippers, autoClipperCost }),
-      ...(earth.humanFlag && projects.project22 && { megaClippers, megaClipperCost }),
+      ...(state.phase !== 'boot' && state.earth.humanFlag && { autoClippers, autoClipperCost }),
+      ...(state.earth.humanFlag && state.projects.project22 && { megaClippers, megaClipperCost }),
     }
   }
 }
@@ -156,6 +155,29 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyBattery' }],
   },
   {
+    isVisible: (s) => s.earth.spaceFlag,
+    canActivate: (s) => s.production.unusedClips >= s.space.probeCost,
+    actions: () => [{ type: 'launchProbe' }],
+  },
+  {
+    isVisible: (s) => s.earth.spaceFlag,
+    canActivate: (s) => s.strategy.yomi >= s.space.probeTrustCost && s.space.probeTrust < s.space.maxTrust,
+    actions: () => [{ type: 'increaseProbeTrust' }],
+  },
+  {
+    isVisible: (s) => s.earth.spaceFlag,
+    canActivate: (s) => s.projects.project121 && s.space.honor >= s.space.maxTrustCost,
+    actions: () => [{ type: 'increaseMaxTrust' }],
+  },
+  {
+    isVisible: (s) => s.earth.spaceFlag,
+    canActivate: (s) => s.strategy.yomi >= s.space.probeTrustCost && s.space.probeTrust < s.space.maxTrust,
+    actions: (s) => (
+      (['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone', 'combat'] as ProbeTrustTarget[])
+        .map(target => ({ type: 'assignProbeTrust' as const, target }))
+    ),
+  },
+  {
     isVisible: (s) => s.earth.humanFlag,
     canActivate: (s) => s.production.funds >= s.economy.adCost,
     actions: () => [{ type: 'buyMarketing' }],
@@ -259,6 +281,19 @@ export function toGameActions(action: AgentAction, state: GameState): GameAction
       const cycles = (targetIndex - currentIndex + strategyOptions.length) % strategyOptions.length
       return Array(cycles).fill({ type: 'cycleStrategySelection' })
     }
+    case 'assignProbeTrust': {
+      const agent2GameTarget: Record<ProbeTrustTarget, Extract<GameAction, { type: 'assignProbeTrust' }>['target']> = {
+        speed: 'speed',
+        exploration: 'nav',
+        self_replication: 'rep',
+        hazard_remediation: 'haz',
+        factory: 'fac',
+        harvester: 'harv',
+        wire_drone: 'wire',
+        combat: 'combat',
+      }
+      return [{ type: 'assignProbeTrust', target: agent2GameTarget[action.target] }]
+    }
     default:
       return [action] as GameAction[]
   }
@@ -269,6 +304,8 @@ export function actionDuration(action: AgentAction): number {
     case 'makeClip':
     case 'raisePrice':
     case 'lowerPrice':
+    case 'increaseProbeTrust':
+    case 'assignProbeTrust':
       return 100
     case 'wait':
       return action.turns * 1_000

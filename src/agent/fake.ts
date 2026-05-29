@@ -89,7 +89,7 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
 
   console.clear()
   readline.cursorTo(process.stdout, 0, 0)
-  process.stdout.write(strategicNarrative)
+  console.log(strategicNarrative)
 
   writeLogSummary({
     timestamp,

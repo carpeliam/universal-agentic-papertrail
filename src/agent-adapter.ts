@@ -313,8 +313,3 @@ export function actionDuration(action: AgentAction): number {
       return 1_000
   }
 }
-
-export function isGameOver(state: GameState) {
-  const remainingMatter = Math.max(0, state.space.totalMatter - state.space.foundMatter)
-  return remainingMatter == 0 || getStallState(state).stalled
-}

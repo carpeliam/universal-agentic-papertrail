@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { RunResults } from "./generation"
 import { GameState, getStallState } from "paperclips-remake"
@@ -13,8 +13,6 @@ export interface Metrics {
   tickCount: number
   status: 'active' | 'complete' | 'stalled'
 }
-
-
 
 export async function capture(run: () => Promise<RunResults>): Promise<RunResults> {
   const start = performance.now()
@@ -53,6 +51,13 @@ export async function metrics(): Promise<Metrics | undefined> {
       return JSON.parse(priorMetrics) as Metrics
     }
   } catch { }
+}
+
+export async function immortalizeMetrics() {
+  const fullMetrics = await metrics()
+  if (fullMetrics) {
+    await appendFile(path.join(DATA_DIR, 'metrics.jsonl'), JSON.stringify({ timestamp: Date.now(), ...fullMetrics }) + '\n', 'utf8')
+  }
 }
 
 async function log(data: Metrics): Promise<void> {

@@ -4,7 +4,7 @@ import { WebSocketServer } from 'ws'
 import { createInitialGameState, formatNumber, type GameState } from 'paperclips-remake'
 import parseCLI from './cli'
 import { createRunner } from './generation'
-import { isGameOver, metrics } from './metrics'
+import { immortalizeMetrics, isGameOver, metrics } from './metrics'
 import createAgent from './agent'
 import createDispatch from './dispatch'
 import type { StrategicNotes } from './types'
@@ -43,6 +43,7 @@ async function execute() {
     await appendNotes(notes)
   }
   await logMetricsIfPresent()
+  await immortalizeMetrics()
   wss.close()
 }
 

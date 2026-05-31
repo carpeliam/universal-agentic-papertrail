@@ -1,13 +1,18 @@
-import { generateText, LanguageModel, Output } from "ai"
-import { agentResponseSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction } from "@/types"
+import { APICallError, generateText, NoObjectGeneratedError, Output, type FlexibleSchema, type LanguageModel } from "ai"
+import { z } from "zod"
 import { anthropic } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
+import { openrouter } from '@openrouter/ai-sdk-provider'
+import { agentResponseSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction } from "@/types"
 
 const ollama = createOllama()
 
 function languageModelFor(agentSpec: LLMAgentSpec) {
+  if ('OPENROUTER_API_KEY' in process.env) {
+    return openrouter(`${agentSpec.provider}/${agentSpec.model}`)
+  }
   switch (agentSpec.provider) {
     case 'anthropic':
       return anthropic(agentSpec.model)
@@ -26,6 +31,45 @@ function createLogger(shouldLog: boolean) {
   return function log(...messages: any[]) {
     if (shouldLog) console.log(new Date(), ...messages)
   }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function is504(err: APICallError): boolean {
+  return typeof err.data === 'object' && err.data !== null && 'code' in err.data && (err.data as { code: unknown }).code === 504
+}
+
+async function submit<T extends FlexibleSchema>(model: LanguageModel, schema: T, text: string, log: (...messages: any[]) => void): Promise<z.infer<T>> {
+  const maxAttempts = 3
+  const attempt = async (prompt: string) => {
+    const { output } = await generateText({ model, output: Output.object({ schema }), prompt })
+    return output
+  }
+  let prompt = text
+
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      return await attempt(prompt)
+    } catch (err) {
+      console.warn(err)
+      if (i === maxAttempts - 1) {
+        throw err
+      }
+      if (APICallError.isInstance(err) && is504(err)) {
+        await delay(125 * Math.pow(2, 2 * i))
+        continue
+      }
+      if (NoObjectGeneratedError.isInstance(err) && err.cause instanceof Error) {
+        prompt = `Your previous response did not match the required schema. Error: ${err.cause.message}\n\nPlease try again, paying close attention to required fields. For example, the "wait" action requires a "turns" field (integer between 1 and 30).\n${text}`
+        log('schema validation failed, retrying:', err.cause)
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('unreachable')
 }
 
 const actionInstructions = `\
@@ -53,11 +97,7 @@ function createMaker(model: LanguageModel, logTicks: boolean) {
         ? (priorNotes.length) ? firstTickNthGenerationPrompt : firstTickFirstGenerationPrompt
         : nthTickPrompt
     log('prompting with available actions:', JSON.stringify(actions.available))
-    const { output } = await generateText({
-      model,
-      output: Output.object({ schema: agentResponseSchema }),
-      prompt: `${intro}\nActions: ${JSON.stringify(actions)}\nState: ${JSON.stringify(state)}`,
-    })
+    const output = await submit(model, agentResponseSchema, `${intro}\nActions: ${JSON.stringify(actions)}\nState: ${JSON.stringify(state)}`, log)
     log(JSON.stringify(output))
     return output
   }
@@ -81,11 +121,7 @@ function createSummarize(model: LanguageModel, logSummaries: boolean) {
   return async function summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
     const prompt = `${summarizePrompt}\n\nPrior notes:\n${JSON.stringify(priorNotes)}\n\nTranscript:\n${JSON.stringify(transcript)}`
     log('summarizing')
-    const { output } = await generateText({
-      model,
-      output: Output.object({ schema: strategicNotesSchema }),
-      prompt,
-    })
+    const output = await submit(model, strategicNotesSchema, prompt, log)
     log(JSON.stringify(output))
     return output
   }

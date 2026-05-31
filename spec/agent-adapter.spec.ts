@@ -54,8 +54,7 @@ describe('toAgentState', () => {
 
     const stateWithAutoClippers: GameState = {
       ...initialState,
-      phase: 'industry',
-      earth: { ...initialState.earth, humanFlag: true },
+      production: { ...initialState.production, funds: 6 },
     }
     agentState = toAgentState(stateWithAutoClippers)
     expect(agentState.production).toHaveProperty('autoClippers')
@@ -191,14 +190,14 @@ describe('getActions', () => {
     expect(actions.unavailable).not.toContainEqual({type: 'makeClip'})
   })
 
-  it('does not show buyAutoClipper in boot phase', () => {
+  it('does not show buyAutoClipper initially', () => {
     const state = createInitialGameState()
     const actions = getActions(state)
     const allActionTypes = [...actions.available, ...actions.unavailable].map(a => a.type)
     expect(allActionTypes).not.toContain('buyAutoClipper')
   })
 
-  it('shows buyAutoClipper as unavailable in industry phase when funds are insufficient', () => {
+  it('shows buyAutoClipper as unavailable when funds are not enough to purchase', () => {
     const initialGameState = createInitialGameState()
     const state: GameState = {
       ...initialGameState,

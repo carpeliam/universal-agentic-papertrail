@@ -1,12 +1,19 @@
 import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
 import type { AgentAction, AgentActions, AgentPrompt, AgentState, PartialAction, ProbeTrustTarget, StrategicNotes } from "./types"
 
+function areAutoClippersVisible(state: GameState) {
+  return state.earth.humanFlag &&
+    state.production.funds >= 5 ||
+    state.production.autoClippers > 0 ||
+    state.production.marketingLevel > 1 ||
+    state.wirePurchased > 0
+}
 function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
   const { autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = state.production
   return {
     production: {
       ...productionFields,
-      ...(state.phase !== 'boot' && state.earth.humanFlag && { autoClippers, autoClipperCost }),
+      ...(areAutoClippersVisible(state) && { autoClippers, autoClipperCost }),
       ...(state.earth.humanFlag && state.projects.project22 && { megaClippers, megaClipperCost }),
     }
   }
@@ -183,7 +190,7 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyMarketing' }],
   },
   {
-    isVisible: (s) => s.phase !== 'boot' && s.earth.humanFlag,
+    isVisible: areAutoClippersVisible,
     canActivate: (s) => s.production.funds >= s.production.autoClipperCost,
     actions: () => [{ type: 'buyAutoClipper' }],
   },

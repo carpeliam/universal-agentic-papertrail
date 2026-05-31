@@ -1,7 +1,6 @@
 import { vi, describe, expect, it, beforeEach } from "vitest"
 import { createInitialGameState, reduceGameState } from "paperclips-remake"
 import { createRunner, run, type Agent, type NotesAgent } from "@/generation"
-import * as metrics from "@/metrics"
 
 describe('run', () => {
   it('dispatches each action', async () => {
@@ -60,9 +59,6 @@ describe('run', () => {
 })
 
 describe('createRunner', () => {
-  beforeEach(() => {
-    vi.spyOn(metrics, 'capture').mockImplementation(fn => fn())
-  })
   it('asks the agent to rewrite notes at the end of the generation', async () => {
     const initialState = createInitialGameState()
     const fakeAgent: Agent = async () => ({ action: { type: 'makeClip' }, reasoning: '' })

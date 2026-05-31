@@ -1,18 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { vol } from 'memfs'
-import { capture, type Metrics } from "@/metrics"
-import { RunResults } from "@/generation"
-import { TickInteraction } from "@/types"
-import { applyIndustryState, applySpaceState } from "./helper"
-import { toAgentState } from "@/agent-adapter"
+import { vol } from "memfs"
 import { createInitialGameState } from "paperclips-remake"
+import { metrics, initMetrics, type Metrics } from "@/metrics"
+import { TickInteraction } from "@/types"
+import { toAgentState } from "@/agent-adapter"
+import { events } from "@/events"
+import { applySpaceState } from "./helper"
 
 vi.mock('node:fs/promises')
 
-describe('capture', () => {
+describe('metrics', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vol.reset()
+    events.reset()
   })
   afterEach(() => { vi.clearAllTimers() })
 
@@ -25,27 +26,46 @@ describe('capture', () => {
         clips: 999,
       },
     }
-    console.log(state)
-    const transcript = [generateTickInteraction(1), generateTickInteraction(2)]
-    async function fn(): Promise<RunResults> {
-      vi.advanceTimersByTime(123)
-      return { state, transcript }
-    }
-    const result = await capture(() => fn())
-    expect(result).toEqual({ state, transcript })
+    const transcript = [generateTickInteraction(), generateTickInteraction()]
 
-    const fileContents = vol.readFileSync('data/metrics.json', 'utf-8') as string
-    const metrics = JSON.parse(fileContents)
-    expect(metrics).toEqual({
+    await initMetrics()
+    events.emit('agentStarted', {
+      type: 'llm',
+      agent: { provider: 'anthropic', model: 'sonnet' },
+      summarizer: { provider: 'anthropic', model: 'sonnet' },
+      verbosity: 0,
+    })
+    vi.advanceTimersByTime(123)
+    events.emit('generationCompleted', { state, transcript })
+
+    const currentMetrics = metrics()
+    expect(currentMetrics).toEqual({
+      agentName: 'anthropic/sonnet',
       wallClockMs: 123,
       gameElapsedMs: 10_000,
       clipCount: 999,
       tickCount: 2,
       status: 'active',
     })
+
+    await vi.waitFor(() => {
+      const fileContents = vol.readFileSync('data/metrics.json', 'utf-8') as string
+      const metrics = JSON.parse(fileContents)
+
+      expect(metrics).toEqual({
+        agentName: 'anthropic/sonnet',
+        wallClockMs: 123,
+        gameElapsedMs: 10_000,
+        clipCount: 999,
+        tickCount: 2,
+        status: 'active',
+      })
+    })
   })
+
   it('appends current game state to existing log', async () => {
-    const priorMetrics: Metrics = {
+    const priorMetrics: Partial<Metrics> = {
+      agentName: 'anthropic/opus',
       wallClockMs: 246,
       gameElapsedMs: 10,
       clipCount: 99,
@@ -64,31 +84,38 @@ describe('capture', () => {
         foundMatter: 1000,
       },
     })
-    const transcript = [generateTickInteraction(1), generateTickInteraction(2)]
-    async function fn(): Promise<RunResults> {
-      vi.advanceTimersByTime(123)
-      return { state, transcript }
-    }
-    const result = await capture(() => fn())
-    expect(result).toEqual({ state, transcript })
+    const transcript = [generateTickInteraction(), generateTickInteraction()]
 
-    const fileContents = vol.readFileSync('data/metrics.json', 'utf-8') as string
-    const metrics = JSON.parse(fileContents)
+    await initMetrics()
+    events.emit('agentStarted', {
+      type: 'llm',
+      agent: { provider: 'anthropic', model: 'sonnet' },
+      summarizer: { provider: 'anthropic', model: 'sonnet' },
+      verbosity: 0,
+    })
+    vi.advanceTimersByTime(123)
+    events.emit('generationCompleted', { state, transcript })
 
-    expect(metrics).toEqual({
-      wallClockMs: 369,
-      gameElapsedMs: 269223000,
-      clipCount: 999,
-      tickCount: 8,
-      status: 'complete',
+    await vi.waitFor(() => {
+      const fileContents = vol.readFileSync('data/metrics.json', 'utf-8') as string
+      const metrics = JSON.parse(fileContents)
+
+      expect(metrics).toEqual({
+        agentName: 'anthropic/sonnet',
+        wallClockMs: 369,
+        gameElapsedMs: 269223000,
+        clipCount: 999,
+        tickCount: 8,
+        status: 'complete',
+      })
     })
   })
 })
 
-function generateTickInteraction(elapsedMs: number): TickInteraction {
+function generateTickInteraction(): TickInteraction {
   return {
     prompt: {
-      state: toAgentState(applyIndustryState({ elapsedMs })),
+      state: toAgentState(createInitialGameState()),
       actions: { available: [{ type: 'wait', turns: 1 }], unavailable: [] },
       priorNotes: [],
     },

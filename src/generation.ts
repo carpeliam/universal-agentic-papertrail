@@ -2,7 +2,8 @@ import type { GameState } from "paperclips-remake"
 import type { AgentPrompt, AgentResponse, StrategicNotes, TickInteraction } from "./types"
 import type { DispatchFn } from "./dispatch"
 import { actionDuration, createAgentPrompt, toGameActions } from "./agent-adapter"
-import { capture, isGameOver } from "./metrics"
+import { isGameOver } from "./metrics"
+import { events } from "./events"
 
 export type Agent = (prompt: AgentPrompt, notes?: string) => Promise<AgentResponse>
 
@@ -30,12 +31,13 @@ export async function run(agent: Agent, dispatch: DispatchFn, state: GameState, 
     currentState = await dispatch(currentState, { type: 'tick', deltaMs: actionDuration(response.action) })
   }
 
+  events.emit('generationCompleted', { state: currentState, transcript })
   return { state: currentState, transcript }
 }
 
 export function createRunner(agent: Agent, notesAgent: NotesAgent, dispatch: DispatchFn, config: { ticksPerGeneration: number } = { ticksPerGeneration: 60 }) {
   return async (priorState: GameState, priorNotes: StrategicNotes[]) => {
-    const { state, transcript } = await capture(() => run(agent, dispatch, priorState, priorNotes, config))
+    const { state, transcript } = await run(agent, dispatch, priorState, priorNotes, config)
     const notes = await notesAgent(priorNotes, transcript)
     return { state, notes }
   }

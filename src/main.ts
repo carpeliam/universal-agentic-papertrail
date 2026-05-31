@@ -4,9 +4,10 @@ import { WebSocketServer } from 'ws'
 import { createInitialGameState, formatNumber, type GameState } from 'paperclips-remake'
 import parseCLI from './cli'
 import { createRunner } from './generation'
-import { immortalizeMetrics, isGameOver, metrics } from './metrics'
+import { isGameOver, initMetrics, metrics, immortalizeMetrics } from './metrics'
 import createAgent from './agent'
 import createDispatch from './dispatch'
+import { events } from './events'
 import type { StrategicNotes } from './types'
 
 const STATE_FILE = 'data/state.json'
@@ -20,6 +21,7 @@ async function execute() {
   if (reset) {
     await Promise.allSettled([unlink(STATE_FILE), unlink(NOTES_FILE), unlink(METRICS_FILE)])
   }
+  await initMetrics()
   let gameState = (await loadState()) ?? createInitialGameState()
   const priorNotes = await loadNotes()
 
@@ -34,6 +36,7 @@ async function execute() {
     console.log('connection established.')
   }
 
+  events.emit('agentStarted', agentOptions)
   while (!isGameOver(gameState)) {
     const { state, notes } = await runner(gameState, priorNotes)
     gameState = state
@@ -42,8 +45,8 @@ async function execute() {
     await saveState(state)
     await appendNotes(notes)
   }
-  await logMetricsIfPresent()
   await immortalizeMetrics()
+  displayMetrics()
   wss.close()
 }
 
@@ -102,15 +105,15 @@ function createWebSocketServer() {
   }
 }
 
-async function logMetricsIfPresent() {
-  const results = await metrics()
+function displayMetrics() {
+  const results = metrics()
   if (results) {
     const y = '\x1b[33m', r = '\x1b[0m'
     console.log('Status'.padEnd(15), y, results.status, r)
-    console.log('Wall clock time'.padEnd(15), y, formatDuration(results.wallClockMs), r)
-    console.log('In-game time'.padEnd(15), y, formatDuration(results.gameElapsedMs), r)
-    console.log('Clip count'.padEnd(15), y, formatNumber(results.clipCount), r)
-    console.log('Tick count'.padEnd(15), y, formatNumber(results.tickCount), r)
+    console.log('Wall clock time'.padEnd(15), y, formatDuration(results.wallClockMs!), r)
+    console.log('In-game time'.padEnd(15), y, formatDuration(results.gameElapsedMs!), r)
+    console.log('Clip count'.padEnd(15), y, formatNumber(results.clipCount!), r)
+    console.log('Tick count'.padEnd(15), y, formatNumber(results.tickCount!), r)
   }
 }
 

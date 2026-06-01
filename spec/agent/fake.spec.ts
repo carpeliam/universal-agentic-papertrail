@@ -268,7 +268,7 @@ describe('fake agent', () => {
 
   it('runs tournament when available and creativity is above floor and ops are above 90%', async () => {
     const { maker } = createFakeAgent()
-    const state = applyComputeState({ compute: { creativity: 1000, operations: 90000, memory: 100 } })
+    const state = applyComputeState({ compute: { creativity: 1000, operations: 90000, memory: 100, creativityOn: true } })
     const { action } = await maker({
       state: toAgentState(state),
       actions: { available: [dummy, runTournament], unavailable: [] }

@@ -151,25 +151,25 @@ export default function createFakeAgent() {
       project40: {                                                   // Hostile Takeover
         urgent: true, shouldExecute: s => {
           if (!project40PriceTarget) {
-            project40PriceTarget = s.economy.clipPrice * 4
+            project40PriceTarget = s.economy!.clipPrice * 4
           }
-          return s.economy.clipPrice >= project40PriceTarget
+          return (s.economy?.clipPrice ?? 0) >= project40PriceTarget
         }
       },
       project37: {                                                   // Hostile Takeover
         urgent: true, shouldExecute: s => {
           if (!project37PriceTarget) {
-            project37PriceTarget = s.economy.clipPrice * 4
+            project37PriceTarget = s.economy!.clipPrice * 4
           }
-          return s.economy.clipPrice >= project37PriceTarget
+          return (s.economy?.clipPrice ?? 0) >= project37PriceTarget
         }
       },
       project38: {                                                   // Full Monopoly
         urgent: true, shouldExecute: s => {
           if (!project38PriceTarget) {
-            project38PriceTarget = s.economy.clipPrice * 7
+            project38PriceTarget = s.economy!.clipPrice * 7
           }
-          return s.economy.clipPrice >= project38PriceTarget
+          return (s.economy?.clipPrice ?? 0) >= project38PriceTarget
         }
       },
       project1:  { urgent: false, shouldExecute: s => s.compute!.processors > 5 },          // Improved AutoClippers
@@ -237,7 +237,7 @@ export default function createFakeAgent() {
 
     // ─── 1. RESOURCE SAFETY ───────────────────────────────────────────────────
     // Emergency wire: don't let production stall for any reason
-    if (buyWire && state.production.wire! < state.economy.publicDemand! * 0.5) {
+    if (buyWire && state.production.wire! < state.economy!.publicDemand! * 0.5) {
       return { action: buyWire, reasoning: 'Wire critically low — buying before anything else.' }
     }
 
@@ -245,14 +245,14 @@ export default function createFakeAgent() {
     if (
       investWithdraw &&
       !needToKeepMoneyInStocks &&
-      state.production.funds! < state.economy.wireCostPerSpool * 1.5 &&
+      state.production.funds! < state.economy!.wireCostPerSpool * 1.5 &&
       state.investment!.bankroll > 0
     ) {
       return { action: investWithdraw, reasoning: 'Funds too low for wire — withdrawing.' }
     }
 
     // ─── 2. CHEAP WIRE STOCKPILE ──────────────────────────────────────────────
-    if (buyWire && state.economy.wireCostPerSpool <= 17) {
+    if (buyWire && state.economy!.wireCostPerSpool <= 17) {
       return { action: buyWire, reasoning: 'Wire is cheap, stocking up.' }
     }
 
@@ -309,13 +309,13 @@ export default function createFakeAgent() {
         unavailable.some((a) => a.type === 'completeProject' && a.projectId === 'project70')
       )
       const shouldWaitForProject = shouldWaitForGlobalWarming || shouldWaitForHypnoDrones
-      if (opsNearCap && state.compute.creativity >= creativityFloor[determinePhase(state)] && !shouldWaitForProject) {
+      if (opsNearCap && state.compute.creativity! >= creativityFloor[determinePhase(state)] && !shouldWaitForProject) {
         return { action: runTournament, reasoning: 'Ops near cap with sufficient creativity — running tournament.' }
       }
     }
 
     // ─── 5. INDUSTRY: PRODUCTION & PRICING ───────────────────────────────────
-    if (['boot', 'compute', 'industry'].includes(phase)) {
+    if (state.economy) {
       if (state.investment) {
         if (
           investWithdraw &&

@@ -1,9 +1,9 @@
 import { z } from "zod"
-import type { GameState, InvestmentRiskMode, ProjectId, StrategySelection } from "paperclips-remake"
+import type { GameState, InvestmentRiskMode, ProjectId, SpaceBattle, StrategySelection } from "paperclips-remake"
 
 const costSchema = z.object({
   amount: z.number(),
-  unit: z.enum(['ops', 'creativity', 'trust', 'dollars', 'yomi', 'clips', 'mwSeconds']),
+  unit: z.enum(['ops', 'creativity', 'trust', 'dollars', 'yomi', 'clips', 'mwSeconds', 'honor']),
 })
 type CostUnit = z.infer<typeof costSchema>['unit']
 export type Cost<U extends CostUnit = CostUnit> = Omit<z.infer<typeof costSchema>, 'unit'> & { unit: U }
@@ -12,7 +12,8 @@ type AgentProduction = Pick<GameState['production'], 'clips'>
   & Partial<Pick<GameState['production'], 'unsoldClips' | 'unusedClips' | 'wire' | 'funds' | 'marketingLevel' | 'autoClippers' | 'autoClipperCost' | 'megaClippers' | 'megaClipperCost'>>
 type AgentEconomy = Pick<GameState['economy'], 'clipPrice' | 'wireSupply'>
   & { wireCostPerSpool: number, marketingCost: number, publicDemand?: number }
-type AgentCompute = Pick<GameState['compute'], 'processors' | 'memory' | 'operations' | 'trust' | 'creativity'>
+type AgentCompute = Pick<GameState['compute'], 'processors' | 'memory' | 'operations'>
+  & Partial<Pick<GameState['compute'], 'trust' | 'creativity'>>
 type AgentStrategy = Pick<GameState['strategy'], 'strategies' | 'selectedStrategy' | 'yomi' | 'tourneyCost' | 'tourneyLevel' | 'lastResults' | 'lastPayoffMatrix' | 'hMovePrev' | 'vMovePrev'>
   & Partial<Pick<GameState['strategy'], 'autoTourneyEnabled'>>
 type AgentEarth =
@@ -25,15 +26,42 @@ type AgentEarth =
     | 'harvesterLevel' | 'harvesterCost'
     | 'wireDroneLevel' | 'wireDroneCost'
     | 'factoryLevel' | 'factoryCost' | 'factoryRate'>>
+  & { factoryDronePerformance?: number }
 type AgentInvestment =
   Pick<GameState['investment'], 'bankroll' | 'portTotal' | 'secTotal' | 'riskMode' | 'investLevel' | 'stocks'>
   & { investUpgradeCost: Cost<'yomi'> }
-type AgentSpace = Pick<GameState['space'], 'totalMatter' | 'foundMatter' | 'probeCount' | 'probeLaunchLevel' | 'probeDescendents' | 'probeCost' | 'probeSpeed' | 'probeNav' | 'probeRep' | 'probeHaz' | 'probeFac' | 'probeHarv' | 'probeWire' | 'probeCombat' | 'probeTrust' | 'probeUsedTrust' | 'probeTrustCost' | 'maxTrust'>
-  & Partial<Pick<GameState['space'], 'honor' | 'maxTrustCost' | 'probesLostHaz' | 'probesLostDrift' | 'probesLostCombat' | 'drifterCount' | 'activeBattle'>>
-export type AgentState = Pick<GameState, 'elapsedMs' | 'lastTickProduction'> & Partial<Pick<GameState, 'projects'>>
+type AgentSpaceBattle = Pick<SpaceBattle, 'name'>
+  & {
+    clipProbes: number
+    drifterProbes: number
+    startingClipProbes: number
+    startingDrifterProbes: number
+  }
+type AgentSpace = Pick<GameState['space'], 'probeCount' | 'probeDescendents' | 'probeCost' | 'probeTrust' | 'probeUsedTrust' | 'maxTrust'>
+  & Partial<Pick<GameState['space'], 'honor' | 'drifterCount'>>
+  & {
+    spaceExplorationPercent: number
+    probesLaunched: number
+    probesLostToHazards: number
+    probesLostToValueDrift: number
+    probesLostToCombat?: number
+    probeTrustCost: Cost<'yomi'>
+    probeDistributionSpeed: number
+    probeDistributionExploration: number
+    probeDistributionSelfReplication: number
+    probeDistributionHazardRemediation: number
+    probeDistributionFactory: number
+    probeDistributionHarvester: number
+    probeDistributionWireDrone: number
+    probeDistributionCombat?: number
+    activeBattle?: AgentSpaceBattle
+    increaseMaxTrustCost?: Cost<'honor'>
+  }
+export type AgentState = Pick<GameState, 'elapsedMs' | 'lastTickProduction' | 'lastTickSales' | 'lastTickRevenue'>
+  & Partial<Pick<GameState, 'projects'>>
   & {
     production: AgentProduction
-    economy: AgentEconomy
+    economy?: AgentEconomy
     compute?: AgentCompute
     strategy?: AgentStrategy
     earth?: AgentEarth

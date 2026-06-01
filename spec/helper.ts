@@ -1,4 +1,4 @@
-import { createInitialGameState, type GameState } from "paperclips-remake"
+import { createInitialGameState, type GameState, type SpaceBattle } from "paperclips-remake"
 
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
@@ -68,5 +68,24 @@ export function applySpaceState(overrides: DeepPartial<GameState> = {}): GameSta
     earth: { ...base.earth, spaceFlag: true, ...earth } as GameState['earth'],
     space: { ...base.space, ...space } as GameState['space'],
     projects: { ...base.projects, ...projects, project35: true } as GameState['projects'],
+  }
+}
+
+export function generateActiveBattle(): SpaceBattle {
+  return {
+    id: 1,
+    name: "Drifter Attack 1",
+    clipProbes: 3452472.361476761,
+    drifterProbes: 410481.57527364074,
+    territory: 3.22559376725434e+28,
+    unitSize: 10003.390377970392,
+    startingLeftShips: 4,
+    startingRightShips: 1,
+    leftShips: 4,
+    rightShips: 1,
+    battleClock: 0,
+    masterBattleClock: 1285,
+    battleEndDelay: false,
+    battleEndTimer: 100,
   }
 }

@@ -22,18 +22,27 @@ function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
 
 function economyStateFor(state: GameState): Pick<AgentState, 'economy'> {
   const { clipPrice, wireCost, demand, wireSupply, adCost } = state.economy
-  return {
-    economy: {
-      clipPrice, wireSupply,
-      wireCostPerSpool: wireCost, marketingCost: adCost,
-      ...(state.earth.humanFlag && { publicDemand: demand }),
+  return (state.earth.humanFlag)
+    ? {
+      economy: {
+        clipPrice, wireSupply,
+        wireCostPerSpool: wireCost, marketingCost: adCost, publicDemand: demand,
+      }
     }
-  }
+    : { }
 }
 
 function computeStateFor(state: GameState): Pick<AgentState, 'compute'> {
-  const { unlocked, processors, memory, operations, trust, creativity } = state.compute
-  return unlocked ? { compute: { processors, memory, operations, trust, creativity } } : {}
+  const { unlocked, processors, memory, operations, trust, creativity, creativityOn } = state.compute
+  return (unlocked)
+    ? {
+      compute: {
+        processors, memory, operations,
+        ...(state.earth.humanFlag && { trust }),
+        ...(creativityOn && { creativity }),
+      }
+    }
+    : {}
 }
 
 function investmentStateFor(state: GameState): Pick<AgentState, 'investment'> {
@@ -45,26 +54,32 @@ function investmentStateFor(state: GameState): Pick<AgentState, 'investment'> {
 
 function strategyStateFor(state: GameState): Pick<AgentState, 'strategy'> {
   const { unlocked, strategies, selectedStrategy, yomi, tourneyCost, tourneyLevel, autoTourneyEnabled, lastResults, lastPayoffMatrix, hMovePrev, vMovePrev } = state.strategy
-  return unlocked
-    ? { strategy: { strategies, selectedStrategy, yomi, tourneyCost, tourneyLevel, lastResults, lastPayoffMatrix, hMovePrev, vMovePrev, ...(state.projects.project118 && { autoTourneyEnabled }) } }
+  return (unlocked)
+    ? {
+      strategy: {
+        strategies, selectedStrategy, yomi, tourneyCost, tourneyLevel, lastResults, lastPayoffMatrix, hMovePrev, vMovePrev,
+        ...(state.projects.project118 && { autoTourneyEnabled }),
+      }
+    }
     : {}
 }
 
 function earthStateFor(state: GameState): Pick<AgentState, 'earth'> {
   const {
-    humanFlag, nanoWire, tothFlag, powerGridFlag, wireProductionFlag,
+    humanFlag, spaceFlag, nanoWire, tothFlag, powerGridFlag, wireProductionFlag,
     farmLevel, farmCost, farmRate,
     batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize,
     availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate,
     harvesterFlag, harvesterLevel, harvesterCost,
     wireDroneFlag, wireDroneLevel, wireDroneCost,
-    factoryFlag, factoryLevel, factoryCost, factoryRate,
+    factoryFlag, factoryLevel, factoryCost, factoryRate, powMod,
   } = state.earth
   return humanFlag
     ? {}
     : {
       earth: {
         nanoWire,
+        ...(powerGridFlag && !spaceFlag && { factoryDronePerformance: powMod }),
         ...(tothFlag && powerGridFlag && { farmLevel, farmCost, farmRate, batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize }),
         ...(wireProductionFlag && { availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate }),
         ...(harvesterFlag && { harvesterLevel, harvesterCost }),
@@ -76,18 +91,32 @@ function earthStateFor(state: GameState): Pick<AgentState, 'earth'> {
 
 function spaceStateFor(state: GameState): Pick<AgentState, 'space'> {
   const {
-    totalMatter, foundMatter, probeCount, probeLaunchLevel, probeDescendents, probeCost, probeSpeed, probeNav, probeRep, probeHaz, probeFac, probeHarv, probeWire, probeCombat, probeTrust, probeUsedTrust, probeTrustCost, maxTrust,
+    totalMatter, foundMatter, probeCount, probeLaunchLevel, probeDescendents, probeCost, probeSpeed,
+    probeNav, probeRep, probeHaz, probeFac, probeHarv, probeWire, probeCombat,
+    probeTrust, probeUsedTrust, probeTrustCost, maxTrust,
     honor, maxTrustCost, probesLostHaz, probesLostDrift, probesLostCombat, drifterCount, activeBattle, battleFlag,
   } = state.space
+  const spaceExplorationPercent = Math.round((foundMatter / totalMatter) * 100 * 1e12) / 1e12
   return state.earth.spaceFlag
     ? {
       space: {
-        totalMatter, foundMatter, probeCount, probeLaunchLevel, probeDescendents, probeCost, probeSpeed, probeNav, probeRep, probeHaz, probeFac, probeHarv, probeWire, probeCombat, probeTrust, probeUsedTrust, probeTrustCost, maxTrust,
-        ...(probesLostHaz > 0 && { probesLostHaz }),
-        ...(probesLostDrift > 0 && { probesLostDrift }),
-        ...(probesLostCombat > 0 && { probesLostCombat }),
-        ...(battleFlag && { drifterCount, activeBattle }),
-        ...(state.projects.project121 && { honor, maxTrustCost }),
+        spaceExplorationPercent, probeCount, probesLaunched: probeLaunchLevel, probeDescendents, probeCost,
+        probeDistributionSpeed: probeSpeed, probeDistributionExploration: probeNav,
+        probeDistributionSelfReplication: probeRep, probeDistributionHazardRemediation: probeHaz,
+        probeDistributionFactory: probeFac, probeDistributionHarvester: probeHarv, probeDistributionWireDrone: probeWire,
+        probeTrust, probeUsedTrust, maxTrust,
+        probeTrustCost: { amount: probeTrustCost, unit: 'yomi' },
+        probesLostToHazards: probesLostHaz, probesLostToValueDrift: probesLostDrift,
+        ...(probesLostCombat > 0 && { probesLostToCombat: probesLostCombat }),
+        ...(state.projects.project131 && { probeDistributionCombat: probeCombat }),
+        ...(state.projects.project121 && { honor, increaseMaxTrustCost: { amount: maxTrustCost, unit: 'honor' } }),
+        ...(battleFlag && { drifterCount, activeBattle: {
+          name: activeBattle!.name,
+          clipProbes: activeBattle!.leftShips,
+          drifterProbes: activeBattle!.rightShips,
+          startingClipProbes: activeBattle!.startingLeftShips,
+          startingDrifterProbes: activeBattle!.startingRightShips,
+        }}),
       }
     }
     : {}
@@ -101,11 +130,10 @@ function projectStateFor(state: GameState): Pick<AgentState, 'projects'> {
 }
 
 export function toAgentState(state: GameState): AgentState {
-  const { elapsedMs, lastTickProduction } = state
+  const { elapsedMs, lastTickProduction, lastTickSales, lastTickRevenue } = state
 
   return {
-    elapsedMs,
-    lastTickProduction,
+    elapsedMs, lastTickProduction, lastTickSales, lastTickRevenue,
     ...productionStateFor(state),
     ...economyStateFor(state),
     ...computeStateFor(state),

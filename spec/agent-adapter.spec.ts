@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { createInitialGameState, type GamePhase, type GameState } from "paperclips-remake"
 import { actionDuration, getActions, toAgentState, toGameActions } from "@/agent-adapter"
-import { applyComputeState, applyExpansionState, applySpaceState } from "./helper"
+import { applyComputeState, applyExpansionState, applySpaceState, generateActiveBattle } from "./helper"
 
 describe('toAgentState', () => {
   it('does not expose internal implementation details to the agent', () => {
@@ -12,10 +12,7 @@ describe('toAgentState', () => {
     expect(agentState).not.toHaveProperty('paused')
     expect(agentState).not.toHaveProperty('prestige')
     expect(agentState).not.toHaveProperty('wirePurchased')
-    expect(agentState).not.toHaveProperty('lastTickSales')
-    expect(agentState).not.toHaveProperty('lastTickRevenue')
     expect(agentState).not.toHaveProperty('lastAction')
-    expect(agentState).not.toHaveProperty('earth')
     expect(agentState).not.toHaveProperty('phase')
   })
 
@@ -92,7 +89,7 @@ describe('toAgentState', () => {
     expect(toAgentState(stateWithAutoTourneyEnabled).strategy).toHaveProperty('autoTourneyEnabled')
   })
 
-  it('hides human-related production fields after releasing the hypnodrones', () => {
+  it('hides human-related fields after releasing the hypnodrones', () => {
     const partialState = { production: { autoClippers: 1 }, projects: { project22: true } }
     let agentState = toAgentState(applyComputeState(partialState))
     expect(agentState.production).toHaveProperty('unsoldClips')
@@ -102,6 +99,8 @@ describe('toAgentState', () => {
     expect(agentState.production).toHaveProperty('marketingLevel')
     expect(agentState.production).toHaveProperty('autoClippers')
     expect(agentState.production).toHaveProperty('autoClipperCost')
+    expect(agentState).toHaveProperty('economy')
+    expect(agentState.compute).toHaveProperty('trust')
     agentState = toAgentState(applyExpansionState(partialState))
     expect(agentState.production).not.toHaveProperty('unsoldClips')
     expect(agentState.production).toHaveProperty('unusedClips')
@@ -112,6 +111,8 @@ describe('toAgentState', () => {
     expect(agentState.production).not.toHaveProperty('autoClipperCost')
     expect(agentState.production).not.toHaveProperty('megaClippers')
     expect(agentState.production).not.toHaveProperty('megaClipperCost')
+    expect(agentState).not.toHaveProperty('economy')
+    expect(agentState.compute).not.toHaveProperty('trust')
   })
 
   it('only exposes limited earth state during the expansion phase', () => {
@@ -126,6 +127,7 @@ describe('toAgentState', () => {
     expect(agentState.earth).not.toHaveProperty('storedPower')
     expect(agentState.earth).not.toHaveProperty('batterySize')
     agentState = toAgentState(applyExpansionState({ earth: { tothFlag: true, powerGridFlag: true }}))
+    expect(agentState.earth).toHaveProperty('factoryDronePerformance')
     expect(agentState.earth).toHaveProperty('farmLevel')
     expect(agentState.earth).toHaveProperty('farmCost')
     expect(agentState.earth).toHaveProperty('farmRate')
@@ -162,26 +164,24 @@ describe('toAgentState', () => {
 
   it('only exposes space state as it becomes available', () => {
     let agentState = toAgentState(applySpaceState())
-    expect(agentState.space).toHaveProperty('totalMatter')
+    expect(agentState.earth).not.toHaveProperty('factoryDronePerformance')
+    expect(agentState.space).toHaveProperty('spaceExplorationPercent')
     expect(agentState.space).not.toHaveProperty('honor')
     expect(agentState.space).not.toHaveProperty('maxTrustCost')
-    expect(agentState.space).not.toHaveProperty('probesLostHaz')
-    expect(agentState.space).not.toHaveProperty('probesLostDrift')
-    expect(agentState.space).not.toHaveProperty('probesLostCombat')
+    expect(agentState.space).not.toHaveProperty('probesLostToCombat')
+    expect(agentState.space).not.toHaveProperty('probeDistributionCombat')
     expect(agentState.space).not.toHaveProperty('drifterCount')
     expect(agentState.space).not.toHaveProperty('activeBattle')
-    agentState = toAgentState(applySpaceState({ space: { probesLostHaz: 1 } }))
-    expect(agentState.space).toHaveProperty('probesLostHaz')
-    agentState = toAgentState(applySpaceState({ space: { probesLostDrift: 1 } }))
-    expect(agentState.space).toHaveProperty('probesLostDrift')
+    agentState = toAgentState(applySpaceState({ projects: { project131: true } }))
+    expect(agentState.space).toHaveProperty('probeDistributionCombat')
     agentState = toAgentState(applySpaceState({ space: { probesLostCombat: 1 } }))
-    expect(agentState.space).toHaveProperty('probesLostCombat')
-    agentState = toAgentState(applySpaceState({ space: { battleFlag: true } }))
+    expect(agentState.space).toHaveProperty('probesLostToCombat')
+    agentState = toAgentState(applySpaceState({ space: { battleFlag: true, activeBattle: generateActiveBattle() } }))
     expect(agentState.space).toHaveProperty('drifterCount')
     expect(agentState.space).toHaveProperty('activeBattle')
     agentState = toAgentState(applySpaceState({ projects: { project121: true } }))
     expect(agentState.space).toHaveProperty('honor')
-    expect(agentState.space).toHaveProperty('maxTrustCost')
+    expect(agentState.space).toHaveProperty('increaseMaxTrustCost')
   })
 
   it('only exposes projects as they become available', () => {

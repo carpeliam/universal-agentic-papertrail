@@ -3,16 +3,17 @@ import type { AgentAction, AgentActions, AgentPrompt, AgentState, Description, P
 
 function areAutoClippersVisible(state: GameState) {
   return state.earth.humanFlag &&
-    state.production.funds >= 5 ||
+    (state.production.funds >= 5 ||
     state.production.autoClippers > 0 ||
     state.production.marketingLevel > 1 ||
-    state.wirePurchased > 0
+    state.wirePurchased > 0)
 }
 function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
-  const { autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = state.production
+  const { unsoldClips, unusedClips, wire, funds, marketingLevel, autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = state.production
   return {
     production: {
       ...productionFields,
+      ...(state.earth.humanFlag ? { unsoldClips, wire, funds, marketingLevel } : { unusedClips }),
       ...(areAutoClippersVisible(state) && { autoClippers, autoClipperCost }),
       ...(state.earth.humanFlag && state.projects.project22 && { megaClippers, megaClipperCost }),
     }
@@ -21,7 +22,13 @@ function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
 
 function economyStateFor(state: GameState): Pick<AgentState, 'economy'> {
   const { clipPrice, wireCost, demand, wireSupply, adCost } = state.economy
-  return { economy: { clipPrice, wireCost, demand, wireSupply, adCost } }
+  return {
+    economy: {
+      clipPrice, wireSupply,
+      wireCostPerSpool: wireCost, marketingCost: adCost,
+      ...(state.earth.humanFlag && { publicDemand: demand }),
+    }
+  }
 }
 
 function computeStateFor(state: GameState): Pick<AgentState, 'compute'> {

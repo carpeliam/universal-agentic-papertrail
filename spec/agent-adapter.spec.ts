@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { createInitialGameState, type GamePhase, type GameState } from "paperclips-remake"
 import { actionDuration, getActions, toAgentState, toGameActions } from "@/agent-adapter"
-import { applyExpansionState, applySpaceState } from "./helper"
+import { applyComputeState, applyExpansionState, applySpaceState } from "./helper"
 
 describe('toAgentState', () => {
   it('does not expose internal implementation details to the agent', () => {
@@ -90,6 +90,28 @@ describe('toAgentState', () => {
       projects: { ...stateWithStrategyUnlocked.projects, project118: true },
     }
     expect(toAgentState(stateWithAutoTourneyEnabled).strategy).toHaveProperty('autoTourneyEnabled')
+  })
+
+  it('hides human-related production fields after releasing the hypnodrones', () => {
+    const partialState = { production: { autoClippers: 1 }, projects: { project22: true } }
+    let agentState = toAgentState(applyComputeState(partialState))
+    expect(agentState.production).toHaveProperty('unsoldClips')
+    expect(agentState.production).not.toHaveProperty('unusedClips')
+    expect(agentState.production).toHaveProperty('wire')
+    expect(agentState.production).toHaveProperty('funds')
+    expect(agentState.production).toHaveProperty('marketingLevel')
+    expect(agentState.production).toHaveProperty('autoClippers')
+    expect(agentState.production).toHaveProperty('autoClipperCost')
+    agentState = toAgentState(applyExpansionState(partialState))
+    expect(agentState.production).not.toHaveProperty('unsoldClips')
+    expect(agentState.production).toHaveProperty('unusedClips')
+    expect(agentState.production).not.toHaveProperty('wire')
+    expect(agentState.production).not.toHaveProperty('funds')
+    expect(agentState.production).not.toHaveProperty('marketingLevel')
+    expect(agentState.production).not.toHaveProperty('autoClippers')
+    expect(agentState.production).not.toHaveProperty('autoClipperCost')
+    expect(agentState.production).not.toHaveProperty('megaClippers')
+    expect(agentState.production).not.toHaveProperty('megaClipperCost')
   })
 
   it('only exposes limited earth state during the expansion phase', () => {

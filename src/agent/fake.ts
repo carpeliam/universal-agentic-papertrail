@@ -27,7 +27,7 @@ function determinePhase(state: AgentState) {
   if ('compute' in state) {
     return 'compute'
   }
-  if ((state.production.autoClippers ?? 0) > 0 || state.production.marketingLevel > 1 || 'projects' in state) {
+  if ((state.production.autoClippers ?? 0) > 0 || (state.production.marketingLevel ?? 0) > 1 || 'projects' in state) {
     return 'industry'
   }
   return 'boot'
@@ -76,9 +76,12 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
     watchouts.push('Clip production stalled — no growth this generation')
   }
 
+  const endStateSummary = (wire)
+    ? `End state: ${clips.toLocaleString()} clips, ${wire.toLocaleString()} wire, $${funds!.toFixed(2)} funds`
+    : `End state: ${clips.toLocaleString()} clips`
   const narrativeParts = [
     `--- Generation (${transcript.length} ticks, phase: ${phase}) ${timestamp} ---`,
-    `End state: ${clips.toLocaleString()} clips, ${wire.toLocaleString()} wire, $${funds.toFixed(2)} funds`,
+    endStateSummary,
     `Actions taken:\n${actionSummary}`,
   ]
   if (newUnlocks.length)          narrativeParts.push(`New unlocks: ${newUnlocks.join(', ')}`)
@@ -189,7 +192,7 @@ export default function createFakeAgent() {
       project66: { urgent: false, shouldExecute: () => true },       // New Strategy: BEAT LAST
       project119: { urgent: false, shouldExecute: () => true },      // Theory of Mind
       project118: { urgent: false, shouldExecute: () => true },      // AutoTourney
-      project70: { urgent: false, shouldExecute: s => s.production.unusedClips > 113_000_000 }, // HypnoDrones
+      project70: { urgent: false, shouldExecute: s => s.production.unsoldClips! > 113_000_000 }, // HypnoDrones
       project35: { urgent: true, shouldExecute: () => true },        // Release the HypnoDrones
       project18: { urgent: true, shouldExecute: () => true },        // Toth Tubule Enfolding
       project127: { urgent: true, shouldExecute: () => true },       // Power Grid
@@ -234,7 +237,7 @@ export default function createFakeAgent() {
 
     // ─── 1. RESOURCE SAFETY ───────────────────────────────────────────────────
     // Emergency wire: don't let production stall for any reason
-    if (buyWire && state.production.wire < state.economy.demand * 0.5) {
+    if (buyWire && state.production.wire! < state.economy.publicDemand! * 0.5) {
       return { action: buyWire, reasoning: 'Wire critically low — buying before anything else.' }
     }
 
@@ -242,14 +245,14 @@ export default function createFakeAgent() {
     if (
       investWithdraw &&
       !needToKeepMoneyInStocks &&
-      state.production.funds < state.economy.wireCost * 1.5 &&
+      state.production.funds! < state.economy.wireCostPerSpool * 1.5 &&
       state.investment!.bankroll > 0
     ) {
       return { action: investWithdraw, reasoning: 'Funds too low for wire — withdrawing.' }
     }
 
     // ─── 2. CHEAP WIRE STOCKPILE ──────────────────────────────────────────────
-    if (buyWire && state.economy.wireCost <= 17) {
+    if (buyWire && state.economy.wireCostPerSpool <= 17) {
       return { action: buyWire, reasoning: 'Wire is cheap, stocking up.' }
     }
 
@@ -318,7 +321,7 @@ export default function createFakeAgent() {
           investWithdraw &&
           !state.projects?.project40 &&
           state.investment.bankroll > 0 &&
-          state.production.funds + state.investment.bankroll >= 500_000
+          state.production.funds! + state.investment.bankroll >= 500_000
         ) {
           return { action: investWithdraw, reasoning: 'Withdrawing to afford A Token of Goodwill.' }
         }
@@ -326,7 +329,7 @@ export default function createFakeAgent() {
           investWithdraw &&
           !needToKeepMoneyInStocks &&
           state.investment.bankroll > 0 &&
-          state.production.funds + state.investment.bankroll >= 1_000_000
+          state.production.funds! + state.investment.bankroll >= 1_000_000
         ) {
           return { action: investWithdraw, reasoning: 'Withdrawing to afford Hostile Takeover.' }
         }
@@ -334,7 +337,7 @@ export default function createFakeAgent() {
           investWithdraw &&
           !state.projects?.project38 &&
           state.investment.bankroll > 0 &&
-          state.production.funds + state.investment.bankroll >= 10_000_000
+          state.production.funds! + state.investment.bankroll >= 10_000_000
         ) {
           return { action: investWithdraw, reasoning: 'Withdrawing to afford Full Monopoly.' }
         }
@@ -342,14 +345,14 @@ export default function createFakeAgent() {
 
       // Proactive wire buffer (below emergency floor but ahead of empty)
       const wireNeedMultiplier = ((state.production.megaClippers ?? 0) > 0 ? 1.5 : 1) * (!state.projects?.project26 ? 1.15 : 1)
-      if (buyWire && state.production.wire < state.economy.demand * wireNeedMultiplier) {
+      if (buyWire && state.production.wire! < state.economy.publicDemand! * wireNeedMultiplier) {
         return { action: buyWire, reasoning: 'Wire buffer low — topping up.' }
       }
 
       const buyAutoClipper = find('buyAutoClipper')
       const buyMegaClipper = find('buyMegaClipper')
       const buyMarketing = find('buyMarketing')
-      const ticksOfInventory = state.production.unsoldClips / state.economy.demand
+      const ticksOfInventory = state.production.unsoldClips! / state.economy.publicDemand!
       const ticksPerSpool = state.economy.wireSupply / state.lastTickProduction
       const wireIsSustainable = ticksPerSpool >= 1.25  // some headroom
 
@@ -360,7 +363,7 @@ export default function createFakeAgent() {
         buyAutoClipper &&
         state.production.autoClippers! < 75 &&
         wireIsSustainable &&
-        state.production.funds - state.production.autoClipperCost! >= state.economy.wireCost
+        state.production.funds! - state.production.autoClipperCost! >= state.economy.wireCostPerSpool!
       ) {
         return { action: buyAutoClipper, reasoning: 'Building to 75 autoclippers.' }
       }
@@ -368,7 +371,7 @@ export default function createFakeAgent() {
         buyMegaClipper &&
         state.production.megaClippers! < 100 &&
         wireIsSustainable &&
-        state.production.funds - state.production.megaClipperCost! >= state.economy.wireCost
+        state.production.funds! - state.production.megaClipperCost! >= state.economy.wireCostPerSpool!
       ) {
         return { action: buyMegaClipper, reasoning: 'Buying mega clipper to REALLY increase production.' }
       }
@@ -438,16 +441,16 @@ export default function createFakeAgent() {
       }
 
       const matterTrendingDown = earth.acquiredMatter < prevEarth.acquiredMatter || earth.acquiredMatter === 0
-      const wireTrendingDown = state.production.wire <= previousState.production.wire
+      const wireTrendingDown = earth.nanoWire <= prevEarth.nanoWire
 
       // Priority 2: battery capacity reached
       const maxStoredPower = earth.batteryLevel * earth.batterySize
       const excessProduction = earth.powerProductionRate - earth.powerConsumptionRate
       const shouldBuyBattery = earth.storedPower === maxStoredPower && maxStoredPower < 10_000_000 && excessProduction < earth.batterySize
 
-      const remainingAfterBattery = state.production.unusedClips - earth.batteryCost
+      const remainingAfterBattery = state.production.unusedClips! - earth.batteryCost
       const ticksToFactoryAfterBattery = (earth.factoryCost - remainingAfterBattery) / state.lastTickProduction
-      const ticksToFactoryNow = (earth.factoryCost - state.production.unusedClips) / state.lastTickProduction
+      const ticksToFactoryNow = (earth.factoryCost - state.production.unusedClips!) / state.lastTickProduction
       const batteryDelaysFactoryBy = ticksToFactoryAfterBattery - ticksToFactoryNow
 
       if (shouldBuyBattery && batteryDelaysFactoryBy < 10 && buyBattery) {
@@ -469,7 +472,7 @@ export default function createFakeAgent() {
       }
 
       // Priority 5: wire trending up — factories are the bottleneck
-      const wireTrendingUp = state.production.wire > previousState.production.wire
+      const wireTrendingUp = earth.nanoWire > prevEarth.nanoWire
       if (wireTrendingUp) {
         if (powerConstrained(50)) return buyFarmIfAffordable
         if (buyFactory) return { action: buyFactory, reasoning: 'Nanowire accumulating — buying factory.' }
@@ -478,14 +481,14 @@ export default function createFakeAgent() {
     }
 
     // ─── 7. INVESTMENT ────────────────────────────────────────────────────────
-    if (state.investment && state.economy) {
+    if (state.investment && state.economy && ['boot', 'compute', 'industry'].includes(phase)) {
       const investDeposit = find('investDeposit')
       const investUpgrade = find('investUpgrade')
-      const secondsOfInventory = state.production.unsoldClips / state.economy.demand
+      const secondsOfInventory = state.production.unsoldClips! / state.economy.publicDemand!
       const depositFrequency = state.investment.riskMode === 'hi' ? 3 : state.investment.riskMode === 'med' ? 5 : 10
       if (
         investDeposit &&
-        state.production.wire > state.economy.demand * 3 &&
+        state.production.wire! > state.economy.publicDemand! * 3 &&
         secondsOfInventory >= 3 &&
         tickCount % depositFrequency === 0
       ) {

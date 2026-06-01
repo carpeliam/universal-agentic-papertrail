@@ -198,7 +198,7 @@ describe('fake agent', () => {
     const { action } = await maker({
       state,
       actions: {
-        available: [makeClip, buyWire],
+        available: [dummy, makeClip, buyWire],
         unavailable: [],
       },
     })
@@ -339,10 +339,8 @@ describe('fake agent', () => {
     const { maker } = createFakeAgent()
     await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     const state = applyExpansionState({
-      production: {
-        wire: 100,
-      },
       earth: {
+        nanoWire: 100,
         tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
         farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
         powerProductionRate: 10,
@@ -362,10 +360,10 @@ describe('fake agent', () => {
     const state = applyExpansionState({
       lastTickProduction: 100000000,
       production: {
-        wire: 100,
         unusedClips: 100000000,
       },
       earth: {
+        nanoWire: 100,
         tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
         farmLevel: 1, batteryLevel: 4, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
         powerProductionRate: 200,
@@ -385,10 +383,8 @@ describe('fake agent', () => {
     await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     await maker({
       state: toAgentState(applyExpansionState({
-        production: {
-          wire: 100,
-        },
         earth: {
+          nanoWire: 100,
           tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
           farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
           powerProductionRate: 200,
@@ -400,10 +396,8 @@ describe('fake agent', () => {
     })
     const { action } = await maker({
       state: toAgentState(applyExpansionState({
-        production: {
-          wire: 100,
-        },
         earth: {
+          nanoWire: 100,
           tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
           farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
           powerProductionRate: 200,
@@ -420,10 +414,8 @@ describe('fake agent', () => {
     await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     await maker({
       state: toAgentState(applyExpansionState({
-        production: {
-          wire: 200,
-        },
         earth: {
+          nanoWire: 200,
           tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
           farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
           powerProductionRate: 200,
@@ -435,10 +427,8 @@ describe('fake agent', () => {
     })
     const { action } = await maker({
       state: toAgentState(applyExpansionState({
-        production: {
-          wire: 100,
-        },
         earth: {
+          nanoWire: 100,
           tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
           farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
           powerProductionRate: 200,
@@ -456,10 +446,8 @@ describe('fake agent', () => {
     await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     await maker({
       state: toAgentState(applyExpansionState({
-        production: {
-          wire: 100,
-        },
         earth: {
+          nanoWire: 100,
           tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
           farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
           powerProductionRate: 200,
@@ -471,10 +459,8 @@ describe('fake agent', () => {
     })
     const { action } = await maker({
       state: toAgentState(applyExpansionState({
-        production: {
-          wire: 200,
-        },
         earth: {
+          nanoWire: 200,
           tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
           farmLevel: 1, batteryLevel: 1, harvesterLevel: 1, wireDroneLevel: 1, factoryLevel: 1,
           powerProductionRate: 200,

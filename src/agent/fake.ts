@@ -2,14 +2,14 @@ import readline from 'node:readline'
 import path from 'node:path'
 import fs from 'node:fs'
 import type { InvestmentRiskMode, ProjectId } from 'paperclips-remake'
-import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction, PartialAction } from '@/types'
+import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction, PromptAction } from '@/types'
 
 const SUMMARY_LOG_FILE = path.resolve('data/run-summary.jsonl')
 type GenerationLogEntry = {
   timestamp: string
   ticks: number
   phase: string
-  availableActions: PartialAction[]
+  availableActions: PromptAction[]
   endState: AgentState
   actions: Record<string, number>
 }
@@ -213,12 +213,12 @@ export default function createFakeAgent() {
     const { state, actions: { available, unavailable } } = prompt
     const phase = determinePhase(state)
 
-    const find = (type: AgentAction['type']) => available.find((a) => a.type === type)
-    const findProject = (id: ProjectId) => available.find((a) => a.type === 'completeProject' && a.projectId === id) as Extract<AgentAction, { type: 'completeProject' }>
-    const findRisk = (mode: InvestmentRiskMode) => available.find((a) => a.type === 'chooseInvestmentRisk' && a.mode === mode) as Extract<AgentAction, { type: 'chooseInvestmentRisk' }>
+    const find = (type: AgentAction['type']) => available.find((a): a is AgentAction => a.type === type)
+    const findProject = (id: ProjectId) => available.find((a): a is AgentAction => a.type === 'completeProject' && a.projectId === id)
+    const findRisk = (mode: InvestmentRiskMode) => available.find((a): a is AgentAction => a.type === 'chooseInvestmentRisk' && a.mode === mode)
 
-    const buyWire = find('buyWire') as AgentAction
-    const investWithdraw = find('investWithdraw') as AgentAction
+    const buyWire = find('buyWire')
+    const investWithdraw = find('investWithdraw')
 
     const needToKeepMoneyInStocks = haveSeenProject['project37'] && !state.projects?.project37 && !findProject('project37')
 
@@ -264,8 +264,8 @@ export default function createFakeAgent() {
     }
 
     // ─── 4. COMPUTE ───────────────────────────────────────────────────────────
-    const addProcessor = find('addProcessor') as AgentAction
-    const addMemory = find('addMemory') as AgentAction
+    const addProcessor = find('addProcessor')
+    const addMemory = find('addMemory')
 
     if (addProcessor && addMemory) {
       if (state.compute!.processors < 5) {
@@ -287,12 +287,12 @@ export default function createFakeAgent() {
       }
     }
 
-    const chooseA100 = available.find((a) => a.type === 'chooseStrategy' && a.strategy === 'A100') as AgentAction
+    const chooseA100 = available.find((a): a is AgentAction => a.type === 'chooseStrategy' && a.strategy === 'A100')
     if (chooseA100) {
       return { action: chooseA100, reasoning: 'A100 is the winning strategy.' }
     }
 
-    const runTournament = find('runTournament') as AgentAction
+    const runTournament = find('runTournament')
     if (runTournament && state.compute) {
       const opsNearCap = state.compute.operations >= state.compute.memory * 1000 * 0.9
       const creativityFloor: Record<ReturnType<typeof determinePhase>, number> = { boot: 0, industry: 0, compute: 1000, expansion: 25_000, space: 30_000 }
@@ -346,9 +346,9 @@ export default function createFakeAgent() {
         return { action: buyWire, reasoning: 'Wire buffer low — topping up.' }
       }
 
-      const buyAutoClipper = find('buyAutoClipper') as AgentAction
-      const buyMegaClipper = find('buyMegaClipper') as AgentAction
-      const buyMarketing = find('buyMarketing') as AgentAction
+      const buyAutoClipper = find('buyAutoClipper')
+      const buyMegaClipper = find('buyMegaClipper')
+      const buyMarketing = find('buyMarketing')
       const ticksOfInventory = state.production.unsoldClips / state.economy.demand
       const ticksPerSpool = state.economy.wireSupply / state.lastTickProduction
       const wireIsSustainable = ticksPerSpool >= 1.25  // some headroom
@@ -373,8 +373,8 @@ export default function createFakeAgent() {
         return { action: buyMegaClipper, reasoning: 'Buying mega clipper to REALLY increase production.' }
       }
 
-      const lowerPrice = find('lowerPrice') as AgentAction
-      const raisePrice = find('raisePrice') as AgentAction
+      const lowerPrice = find('lowerPrice')
+      const raisePrice = find('raisePrice')
 
       Object.keys(haveSeenProject).forEach(p => {
         if (haveSeenProject[p] || [...available, ...unavailable].find(a => a.type === 'completeProject' && a.projectId === p)) {
@@ -396,11 +396,11 @@ export default function createFakeAgent() {
 
     // ─── 6. EXPANSION: DRONES & FACTORIES ────────────────────────────────────
     if (phase === 'expansion' && state.earth) {
-      const buyBattery  = find('buyBattery') as AgentAction
-      const buyWireDrone = find('buyWireDrone') as AgentAction
-      const buyHarvester = find('buyHarvester') as AgentAction
-      const buyFactory = find('buyFactory') as AgentAction
-      const buyFarm = find('buyFarm') as AgentAction
+      const buyBattery  = find('buyBattery')
+      const buyWireDrone = find('buyWireDrone')
+      const buyHarvester = find('buyHarvester')
+      const buyFactory = find('buyFactory')
+      const buyFarm = find('buyFarm')
       const earth = state.earth as Required<typeof state.earth>
 
       // Bootstrap: need at least 1 of each in dependency order
@@ -479,8 +479,8 @@ export default function createFakeAgent() {
 
     // ─── 7. INVESTMENT ────────────────────────────────────────────────────────
     if (state.investment && state.economy) {
-      const investDeposit = find('investDeposit') as AgentAction
-      const investUpgrade = find('investUpgrade') as AgentAction
+      const investDeposit = find('investDeposit')
+      const investUpgrade = find('investUpgrade')
       const secondsOfInventory = state.production.unsoldClips / state.economy.demand
       const depositFrequency = state.investment.riskMode === 'hi' ? 3 : state.investment.riskMode === 'med' ? 5 : 10
       if (
@@ -518,14 +518,14 @@ export default function createFakeAgent() {
       }
     }
 
-    const makeClip = find('makeClip') as AgentAction
+    const makeClip = find('makeClip')
     if (makeClip && ['boot', 'compute', 'industry'].includes(phase)) {
       return { action: makeClip, reasoning: 'Making clips is how we win! ...Right?' }
     }
 
-    const fallback = available.find(a => !['wait'].includes(a.type))
+    const fallback = available.find((a): a is AgentAction => !['wait'].includes(a.type))
     if (fallback) {
-      return { action: fallback as AgentAction, reasoning: `Falling back to ${fallback.type}.` }
+      return { action: fallback, reasoning: `Falling back to ${fallback.type}.` }
     }
 
     return { action: { type: 'wait', turns: 1 }, reasoning: 'Nothing available — waiting.' }

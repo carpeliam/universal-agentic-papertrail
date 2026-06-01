@@ -181,7 +181,7 @@ describe('getActions', () => {
   it('always includes waiting as a posibility', () => {
     const state = createInitialGameState()
     const actions = getActions(state)
-    expect(actions.available).toContainEqual({type: 'wait'})
+    expect(actions.available).toContainEqual({ type: 'wait', turns: '<a number between 1 and 30>' })
   })
   it('can make a clip at game start', () => {
     const state = createInitialGameState()

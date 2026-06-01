@@ -83,11 +83,15 @@ export const agentResponseSchema = z.object({
 })
 export type AgentResponse = z.infer<typeof agentResponseSchema>
 
-export type PartialAction = Partial<AgentAction> & Pick<AgentAction, 'type'>
+export type Description = string & { readonly __description: unique symbol }
+type Describable<T> = {
+  [K in keyof T]: K extends 'type' ? T[K] : T[K] | Description
+}
+export type PromptAction = AgentAction extends infer A ? Describable<A> : never
 
 export type AgentActions = {
-  available: PartialAction[]
-  unavailable: PartialAction[]
+  available: PromptAction[]
+  unavailable: PromptAction[]
 }
 
 export const strategicNotesSchema = z.object({

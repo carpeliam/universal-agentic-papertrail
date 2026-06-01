@@ -1,5 +1,5 @@
 import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
-import type { AgentAction, AgentActions, AgentPrompt, AgentState, PartialAction, ProbeTrustTarget, StrategicNotes } from "./types"
+import type { AgentAction, AgentActions, AgentPrompt, AgentState, Description, PromptAction, ProbeTrustTarget, StrategicNotes } from "./types"
 
 function areAutoClippersVisible(state: GameState) {
   return state.earth.humanFlag &&
@@ -113,7 +113,7 @@ export function toAgentState(state: GameState): AgentState {
 type ActionDescriptor = {
   isVisible: (s: GameState) => boolean
   canActivate: (s: GameState) => boolean
-  actions: (s: GameState) => PartialAction[]
+  actions: (s: GameState) => PromptAction[]
 }
 const ACTION_REGISTRY: ActionDescriptor[] = [
   {
@@ -248,10 +248,13 @@ function getActionDescriptors(state: GameState): ActionDescriptor[] {
   return [...ACTION_REGISTRY, ...projectDescriptors]
 }
 
+function description(text: string) {
+  return `<${text}>` as Description
+}
 export function getActions(state: GameState): AgentActions {
   const descriptors = getActionDescriptors(state).filter(d => d.isVisible(state))
   return {
-    available: [{ type: 'wait' }, ...descriptors.filter(d => d.canActivate(state)).flatMap(d => d.actions(state))],
+    available: [{ type: 'wait', turns: description('a number between 1 and 30') }, ...descriptors.filter(d => d.canActivate(state)).flatMap(d => d.actions(state))],
     unavailable: descriptors.filter(d => !d.canActivate(state)).flatMap(d => d.actions(state)),
   }
 }

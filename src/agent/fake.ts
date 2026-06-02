@@ -417,7 +417,7 @@ export default function createFakeAgent() {
         return { action: buyHarvester, reasoning: 'Need first harvester for matter acquisition.' }
       }
       if (earth.wireDroneLevel === 0 && buyWireDrone) {
-        return { action: buyWireDrone, reasoning: 'Need first wire drone for nanowire production.' }
+        return { action: buyWireDrone, reasoning: 'Need first wire drone for wire production.' }
       }
       if (earth.factoryLevel === 0 && buyFactory) {
         return { action: buyFactory, reasoning: 'Need first factory to start clip production.' }
@@ -441,7 +441,7 @@ export default function createFakeAgent() {
       }
 
       const matterTrendingDown = earth.acquiredMatter < prevEarth.acquiredMatter || earth.acquiredMatter === 0
-      const wireTrendingDown = earth.nanoWire <= prevEarth.nanoWire
+      const wireTrendingDown = state.production.wire <= previousState.production.wire
 
       // Priority 2: battery capacity reached
       const maxStoredPower = earth.batteryLevel * earth.batterySize
@@ -467,15 +467,15 @@ export default function createFakeAgent() {
       // Priority 4: wire trending down
       if (wireTrendingDown) {
         if (powerConstrained(1)) return buyFarmIfAffordable
-        if (buyWireDrone) return { action: buyWireDrone, reasoning: 'Nanowire trending down — buying wire drone.' }
+        if (buyWireDrone) return { action: buyWireDrone, reasoning: 'wire trending down — buying wire drone.' }
         return { action: { type: 'wait', turns: 1 }, reasoning: 'Saving up for a wire drone.' }
       }
 
       // Priority 5: wire trending up — factories are the bottleneck
-      const wireTrendingUp = earth.nanoWire > prevEarth.nanoWire
+      const wireTrendingUp = state.production.wire > previousState.production.wire
       if (wireTrendingUp) {
         if (powerConstrained(50)) return buyFarmIfAffordable
-        if (buyFactory) return { action: buyFactory, reasoning: 'Nanowire accumulating — buying factory.' }
+        if (buyFactory) return { action: buyFactory, reasoning: 'wire accumulating — buying factory.' }
         return { action: { type: 'wait', turns: 1 }, reasoning: 'Saving up for factory.' }
       }
     }

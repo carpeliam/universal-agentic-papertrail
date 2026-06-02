@@ -8,17 +8,15 @@ const costSchema = z.object({
 type CostUnit = z.infer<typeof costSchema>['unit']
 export type Cost<U extends CostUnit = CostUnit> = Omit<z.infer<typeof costSchema>, 'unit'> & { unit: U }
 
-type AgentProduction = Pick<GameState['production'], 'clips'>
-  & Partial<Pick<GameState['production'], 'unsoldClips' | 'unusedClips' | 'wire' | 'funds' | 'marketingLevel' | 'autoClippers' | 'autoClipperCost' | 'megaClippers' | 'megaClipperCost'>>
+type AgentProduction = Pick<GameState['production'], 'clips' | 'wire'>
+  & Partial<Pick<GameState['production'], 'unsoldClips' | 'unusedClips' | 'funds' | 'marketingLevel' | 'autoClippers' | 'autoClipperCost' | 'megaClippers' | 'megaClipperCost'>>
 type AgentEconomy = Pick<GameState['economy'], 'clipPrice' | 'wireSupply'>
   & { wireCostPerSpool: number, marketingCost: number, publicDemand?: number }
 type AgentCompute = Pick<GameState['compute'], 'processors' | 'memory' | 'operations'>
   & Partial<Pick<GameState['compute'], 'trust' | 'creativity'>>
 type AgentStrategy = Pick<GameState['strategy'], 'strategies' | 'selectedStrategy' | 'yomi' | 'tourneyCost' | 'tourneyLevel' | 'lastResults' | 'lastPayoffMatrix' | 'hMovePrev' | 'vMovePrev'>
   & Partial<Pick<GameState['strategy'], 'autoTourneyEnabled'>>
-type AgentEarth =
-  Pick<GameState['earth'], 'nanoWire'>
-  & Partial<Pick<GameState['earth'],
+type AgentEarth = Partial<Pick<GameState['earth'],
     | 'farmLevel' | 'farmCost' | 'farmRate'
     | 'batteryLevel' | 'batteryCost' | 'powerProductionRate' | 'powerConsumptionRate'
     | 'storedPower' | 'batterySize'

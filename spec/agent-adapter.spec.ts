@@ -94,7 +94,6 @@ describe('toAgentState', () => {
     let agentState = toAgentState(applyComputeState(partialState))
     expect(agentState.production).toHaveProperty('unsoldClips')
     expect(agentState.production).not.toHaveProperty('unusedClips')
-    expect(agentState.production).toHaveProperty('wire')
     expect(agentState.production).toHaveProperty('funds')
     expect(agentState.production).toHaveProperty('marketingLevel')
     expect(agentState.production).toHaveProperty('autoClippers')
@@ -104,7 +103,6 @@ describe('toAgentState', () => {
     agentState = toAgentState(applyExpansionState(partialState))
     expect(agentState.production).not.toHaveProperty('unsoldClips')
     expect(agentState.production).toHaveProperty('unusedClips')
-    expect(agentState.production).not.toHaveProperty('wire')
     expect(agentState.production).not.toHaveProperty('funds')
     expect(agentState.production).not.toHaveProperty('marketingLevel')
     expect(agentState.production).not.toHaveProperty('autoClippers')
@@ -118,7 +116,6 @@ describe('toAgentState', () => {
   it('only exposes limited earth state during the expansion phase', () => {
     let agentState = toAgentState(applyExpansionState())
     expect(agentState).toHaveProperty('earth')
-    expect(agentState.earth).toHaveProperty('nanoWire')
     expect(agentState.earth).not.toHaveProperty('farmLevel')
     expect(agentState.earth).not.toHaveProperty('farmCost')
     expect(agentState.earth).not.toHaveProperty('farmRate')

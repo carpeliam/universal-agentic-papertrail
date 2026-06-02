@@ -9,11 +9,11 @@ function areAutoClippersVisible(state: GameState) {
     state.wirePurchased > 0)
 }
 function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
-  const { unsoldClips, unusedClips, wire, funds, marketingLevel, autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = state.production
+  const { unsoldClips, unusedClips, funds, marketingLevel, autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = state.production
   return {
     production: {
       ...productionFields,
-      ...(state.earth.humanFlag ? { unsoldClips, wire, funds, marketingLevel } : { unusedClips }),
+      ...(state.earth.humanFlag ? { unsoldClips, funds, marketingLevel } : { unusedClips }),
       ...(areAutoClippersVisible(state) && { autoClippers, autoClipperCost }),
       ...(state.earth.humanFlag && state.projects.project22 && { megaClippers, megaClipperCost }),
     }
@@ -66,7 +66,7 @@ function strategyStateFor(state: GameState): Pick<AgentState, 'strategy'> {
 
 function earthStateFor(state: GameState): Pick<AgentState, 'earth'> {
   const {
-    humanFlag, spaceFlag, nanoWire, tothFlag, powerGridFlag, wireProductionFlag,
+    humanFlag, spaceFlag, tothFlag, powerGridFlag, wireProductionFlag,
     farmLevel, farmCost, farmRate,
     batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize,
     availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate,
@@ -78,7 +78,6 @@ function earthStateFor(state: GameState): Pick<AgentState, 'earth'> {
     ? {}
     : {
       earth: {
-        nanoWire,
         ...(powerGridFlag && !spaceFlag && { factoryDronePerformance: powMod }),
         ...(tothFlag && powerGridFlag && { farmLevel, farmCost, farmRate, batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize }),
         ...(wireProductionFlag && { availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate }),

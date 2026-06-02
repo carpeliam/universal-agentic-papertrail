@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { AgentAction, AgentPrompt, StrategicNotes, TickInteraction } from '@/types'
 
 vi.mock('ai', () => ({
@@ -30,11 +30,12 @@ vi.mock('ai', () => ({
   },
 }))
 
+vi.hoisted(() => { vi.stubEnv('OPENROUTER_API_KEY', undefined as any) })
+
 import { APICallError, generateText, NoObjectGeneratedError, type GenerateTextResult } from 'ai'
-import createAiAgent from '@/agent/vercel'
 import { createInitialGameState } from 'paperclips-remake'
+import createAiAgent from '@/agent/vercel'
 import { getActions, toAgentState } from '@/agent-adapter'
-import { anthropic } from '@ai-sdk/anthropic'
 
 const mockGenerateText = vi.mocked(generateText)
 
@@ -61,6 +62,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockGenerateText.mockResolvedValue({ output: mockAgentResponse } as GenerateTextResult<{}, any>)
 })
+afterEach(() => { vi.unstubAllEnvs() })
 
 describe('maker', () => {
   const { maker } = createAiAgent({ agent: { provider: 'anthropic', model: 'claude-monet-1-0' }, summarizer: { provider: 'anthropic', model: 'claude-debussy-1-0' }, verbosity: 0 })

@@ -25,7 +25,7 @@ describe('fake agent', () => {
 
   it('completes project2 (wire begging) when it is available', async () => {
     const state = createInitialGameState()
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
     const action: AgentAction = {
       type: 'completeProject',
@@ -35,7 +35,7 @@ describe('fake agent', () => {
       cost: { amount: 1, unit: 'trust' },
     }
 
-    const result = await maker({
+    const result = await play({
       state: toAgentState(state),
       actions: {
         available: [action],
@@ -52,9 +52,9 @@ describe('fake agent', () => {
       ...initialState,
       compute: { ...initialState.compute, unlocked: true, processors: 4 },
     })
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
-    const result = await maker({
+    const result = await play({
       state,
       actions: {
         available: [dummy, addProcessor, addMemory],
@@ -71,9 +71,9 @@ describe('fake agent', () => {
       ...initialState,
       compute: { ...initialState.compute, unlocked: true, processors: 6 },
     })
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
-    const result = await maker({
+    const result = await play({
       state,
       actions: {
         available: [dummy, addProcessor, addMemory],
@@ -88,12 +88,12 @@ describe('fake agent', () => {
 
   it('buys marketing when clip price is at minimum', async () => {
     const initialState = createInitialGameState()
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = {
       ...initialState,
       economy: { ...initialState.economy, clipPrice: 0.01 }
     }
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, buyMarketing], unavailable: [] }
     })
@@ -102,9 +102,9 @@ describe('fake agent', () => {
 
   it('chooses A100 strategy when available', async () => {
     const initialState = createInitialGameState()
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
-    const result = await maker({
+    const result = await play({
       state: toAgentState(initialState),
       actions: {
         available: [chooseA100, makeClip],
@@ -130,9 +130,9 @@ describe('fake agent', () => {
         wireCost: 100,
       },
     })
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
-    const result = await maker({
+    const result = await play({
       state,
       actions: {
         available: [buyAutoClipper],
@@ -145,9 +145,9 @@ describe('fake agent', () => {
 
   it('makes a clip when no other actions are available', async () => {
     const initialState = createInitialGameState()
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
-    const result = await maker({
+    const result = await play({
       state: toAgentState(initialState),
       actions: {
         available: [makeClip, buyWire],
@@ -171,9 +171,9 @@ describe('fake agent', () => {
         demand: 100,
       },
     })
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
-    const result = await maker({
+    const result = await play({
       state,
       actions: {
         available: [buyWire, makeClip],
@@ -193,9 +193,9 @@ describe('fake agent', () => {
         wireCost: 16,
       },
     })
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
 
-    const { action } = await maker({
+    const { action } = await play({
       state,
       actions: {
         available: [dummy, makeClip, buyWire],
@@ -207,10 +207,10 @@ describe('fake agent', () => {
   })
 
   it('waits when no actions are available', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const initialState = createInitialGameState()
 
-    const result = await maker({
+    const result = await play({
       state: toAgentState(initialState),
       actions: {
         available: [],
@@ -222,7 +222,7 @@ describe('fake agent', () => {
   })
 
   it('lowers price when unsold inventory exceeds 90 ticks of demand', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = toAgentState(applyIndustryState({
       production: {
         unsoldClips: 9_001,
@@ -232,7 +232,7 @@ describe('fake agent', () => {
       },
     }))
 
-    const result = await maker({
+    const result = await play({
       state,
       actions: {
         available: [dummy, lowerPrice, buyWire],
@@ -244,7 +244,7 @@ describe('fake agent', () => {
   })
 
   it('raises price when unsold inventory is below 45/2 ticks of demand', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = toAgentState(applyIndustryState({
       production: {
         autoClippers: 1,
@@ -255,7 +255,7 @@ describe('fake agent', () => {
       },
     }))
 
-    const result = await maker({
+    const result = await play({
       state,
       actions: {
         available: [dummy, raisePrice, buyWire],
@@ -267,9 +267,9 @@ describe('fake agent', () => {
   })
 
   it('runs tournament when available and creativity is above floor and ops are above 90%', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = applyComputeState({ compute: { creativity: 1000, operations: 90000, memory: 100, creativityOn: true } })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, runTournament], unavailable: [] }
     })
@@ -277,9 +277,9 @@ describe('fake agent', () => {
   })
 
   it('does not run tournament when creativity is below compute phase floor', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = applyComputeState({ compute: { creativity: 0 } })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, runTournament], unavailable: [] }
     })
@@ -287,9 +287,9 @@ describe('fake agent', () => {
   })
 
   it('does not run tournament when ops are below 90%', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = applyComputeState({ compute: { creativity: 1000, operations: 89999, memory: 100 } })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, runTournament], unavailable: [] }
     })
@@ -299,9 +299,9 @@ describe('fake agent', () => {
   const hypnoDrones: AgentAction = { type: 'completeProject', projectId: 'project70', title: 'HypnoDrones', description: 'Unlock the final human-to-post-human transition project.', cost: { amount: 70_000, unit: 'ops' } }
 
   it('does not run tournament when HypnoDrones is unavailable and memory is sufficient', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = applyComputeState({ compute: { creativity: 1000, memory: 70 } })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, runTournament], unavailable: [hypnoDrones] }
     })
@@ -309,9 +309,9 @@ describe('fake agent', () => {
   })
 
   it('does not run tournament when creativity is below expansion floor', async () => {
-    const { maker } = createFakeAgent()
+    const { play } = createFakeAgent().createPlayer([])
     const state = applyExpansionState({ compute: { creativity: 5000 } })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, runTournament], unavailable: [] }
     })
@@ -319,8 +319,8 @@ describe('fake agent', () => {
   })
 
   it('buys farm when next purchase would exceed power production', async () => {
-    const { maker } = createFakeAgent()
-    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    const { play } = createFakeAgent().createPlayer([])
+    await play({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     const state = applyExpansionState({
       earth: {
         tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true, wireDroneFlag: true, factoryFlag: true,
@@ -328,7 +328,7 @@ describe('fake agent', () => {
         powerConsumptionRate: 10,
       }
     })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
@@ -336,8 +336,8 @@ describe('fake agent', () => {
   })
 
   it('buys a farm when the power production rate is lower than the consumption rate', async () => {
-    const { maker } = createFakeAgent()
-    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    const { play } = createFakeAgent().createPlayer([])
+    await play({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     const state = applyExpansionState({
       production: {
         wire: 100,
@@ -349,7 +349,7 @@ describe('fake agent', () => {
         powerConsumptionRate: 100,
       },
     })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
@@ -357,8 +357,8 @@ describe('fake agent', () => {
   })
 
   it('buys battery when storage is at capacity and factory purchase is not held up for long', async () => {
-    const { maker } = createFakeAgent()
-    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    const { play } = createFakeAgent().createPlayer([])
+    await play({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
     const state = applyExpansionState({
       lastTickProduction: 100000000,
       production: {
@@ -373,7 +373,7 @@ describe('fake agent', () => {
         storedPower: 40_000,
       }
     })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(state),
       actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
@@ -381,9 +381,9 @@ describe('fake agent', () => {
   })
 
   it('buys a harvester when acquired matter is trending downward', async () => {
-    const { maker } = createFakeAgent()
-    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
-    await maker({
+    const { play } = createFakeAgent().createPlayer([])
+    await play({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    await play({
       state: toAgentState(applyExpansionState({
         production: {
           wire: 100,
@@ -398,7 +398,7 @@ describe('fake agent', () => {
       })),
       actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(applyExpansionState({
         production: {
           wire: 100,
@@ -416,9 +416,9 @@ describe('fake agent', () => {
     expect(action).toEqual(buyHarvester)
   })
   it('buys a wire drone when wire is trending downward', async () => {
-    const { maker } = createFakeAgent()
-    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
-    await maker({
+    const { play } = createFakeAgent().createPlayer([])
+    await play({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    await play({
       state: toAgentState(applyExpansionState({
         production: {
           wire: 200,
@@ -433,7 +433,7 @@ describe('fake agent', () => {
       })),
       actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(applyExpansionState({
         production: {
           wire: 100,
@@ -452,9 +452,9 @@ describe('fake agent', () => {
   })
 
   it('buys a factory when wire is trending upward', async () => {
-    const { maker } = createFakeAgent()
-    await maker({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
-    await maker({
+    const { play } = createFakeAgent().createPlayer([])
+    await play({ state: toAgentState(applyExpansionState()), actions: { available: [], unavailable: [] } })
+    await play({
       state: toAgentState(applyExpansionState({
         production: {
           wire: 100,
@@ -469,7 +469,7 @@ describe('fake agent', () => {
       })),
       actions: { available: [dummy, buyFarm, buyBattery, buyHarvester, buyWireDrone, buyFactory], unavailable: [] }
     })
-    const { action } = await maker({
+    const { action } = await play({
       state: toAgentState(applyExpansionState({
         production: {
           wire: 200,

@@ -17,7 +17,7 @@ const METRICS_FILE = 'data/metrics.json'
 
 async function execute() {
   const { waitForClient, reset, ...agentOptions } = parseCLI()
-  const { maker, summarize } = createAgent(agentOptions)
+  const { createPlayer, summarize } = createAgent(agentOptions)
   if (reset) {
     await Promise.allSettled([unlink(STATE_FILE), unlink(NOTES_FILE), unlink(METRICS_FILE)])
   }
@@ -28,7 +28,7 @@ async function execute() {
   const wss = createWebSocketServer()
   process.once('SIGINT', () => { wss.close() })
   const dispatch = createDispatch({ wss })
-  const runner = createRunner(maker, summarize, dispatch)
+  const runner = createRunner(createPlayer, summarize, dispatch)
 
   if (waitForClient) {
     console.log('waiting for client connection ...')

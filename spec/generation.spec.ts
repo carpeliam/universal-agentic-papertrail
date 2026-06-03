@@ -1,14 +1,15 @@
-import { vi, describe, expect, it, beforeEach } from "vitest"
+import { vi, describe, expect, it } from "vitest"
 import { createInitialGameState, reduceGameState } from "paperclips-remake"
-import { createRunner, run, type Agent, type NotesAgent } from "@/generation"
+import { createRunner, run, type NotesAgent } from "@/generation"
+import type { Player } from "@/agent"
 
 describe('run', () => {
   it('dispatches each action', async () => {
     const initialState = createInitialGameState()
-    const fakeAgent: Agent = async () => ({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(fakeAgent, fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
+    await run(createPlayer(fakePlay), fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
 
     expect(fakeDispatch).toHaveBeenNthCalledWith(1, initialState, { type: 'makeClip' })
     const additionalExpectedActions = [
@@ -24,10 +25,10 @@ describe('run', () => {
   })
   it('returns a transcript with one record per tick', async () => {
     const initialState = createInitialGameState()
-    const fakeAgent: Agent = async () => ({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    const { transcript } = await run(fakeAgent, fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
+    const { transcript } = await run(createPlayer(fakePlay), fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
 
     expect(transcript).toHaveLength(3)
   })
@@ -37,23 +38,23 @@ describe('run', () => {
       ...initialState,
       space: { ...initialState.space, totalMatter: 100, foundMatter: 100 },
     }
-    const fakeAgent: Agent = vi.fn().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(fakeAgent, fakeDispatch, winState, [], { ticksPerGeneration: 2 })
+    await run(createPlayer(fakePlay), fakeDispatch, winState, [], { ticksPerGeneration: 2 })
 
-    expect(fakeAgent).not.toHaveBeenCalled()
+    expect(fakePlay).not.toHaveBeenCalled()
     expect(fakeDispatch).not.toHaveBeenCalled()
   })
   it('returns early if the game stalls part way through', async () => {
     const initialState = createInitialGameState()
     const stalledState = { ...initialState, earth: { ...initialState.earth, humanFlag: false, spaceFlag: true } }
-    const fakeAgent: Agent = vi.fn().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(fakeAgent, fakeDispatch, stalledState, [], { ticksPerGeneration: 2 })
+    await run(createPlayer(fakePlay), fakeDispatch, stalledState, [], { ticksPerGeneration: 2 })
 
-    expect(fakeAgent).not.toHaveBeenCalled()
+    expect(fakePlay).not.toHaveBeenCalled()
     expect(fakeDispatch).not.toHaveBeenCalled()
   })
 })
@@ -61,11 +62,11 @@ describe('run', () => {
 describe('createRunner', () => {
   it('asks the agent to rewrite notes at the end of the generation', async () => {
     const initialState = createInitialGameState()
-    const fakeAgent: Agent = async () => ({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    const runGeneration = createRunner(fakeAgent, fakeNotesAgent, fakeDispatch, { ticksPerGeneration: 2 })
+    const runGeneration = createRunner(createPlayer(fakePlay), fakeNotesAgent, fakeDispatch, { ticksPerGeneration: 2 })
     const result = await runGeneration(initialState, [])
 
     expect(result.notes).toEqual({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
@@ -81,17 +82,8 @@ describe('createRunner', () => {
       ])
     )
   })
-
-  it('only shares prior notes with the first tick of each generation', async () => {
-    const initialState = createInitialGameState()
-    const fakeAgent = vi.fn<Agent>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
-    const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
-    const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
-
-    const runGeneration = createRunner(fakeAgent, fakeNotesAgent, fakeDispatch, { ticksPerGeneration: 2 })
-    await runGeneration(initialState, [])
-
-    expect(fakeAgent).toHaveBeenNthCalledWith(1, expect.objectContaining({ priorNotes: [] }))
-    expect(fakeAgent).toHaveBeenLastCalledWith(expect.objectContaining({ priorNotes: undefined }))
-  })
 })
+
+function createPlayer(play: Player['play']) {
+  return () => ({ play })
+}

@@ -117,7 +117,6 @@ function generateTickInteraction(): TickInteraction {
     prompt: {
       state: toAgentState(createInitialGameState()),
       actions: { available: [{ type: 'wait', turns: 1 }], unavailable: [] },
-      priorNotes: [],
     },
     response: { action: { type: 'wait', turns: 1 }, reasoning: '' },
   }

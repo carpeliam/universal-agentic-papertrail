@@ -4,8 +4,9 @@ import type { DispatchFn } from "./dispatch"
 import { actionDuration, createAgentPrompt, toGameActions } from "./agent-adapter"
 import { isGameOver } from "./metrics"
 import { events } from "./events"
+import { AgentTeam } from "./agent"
 
-export type Agent = (prompt: AgentPrompt, notes?: string) => Promise<AgentResponse>
+export type Agent = (prompt: AgentPrompt) => Promise<AgentResponse>
 
 export type NotesAgent = (priorNotes: StrategicNotes[], transcript: TickInteraction[]) => Promise<StrategicNotes>
 
@@ -14,16 +15,18 @@ export interface RunResults {
   state: GameState
   transcript: TickInteraction[]
 }
-export async function run(agent: Agent, dispatch: DispatchFn, state: GameState, priorNotes: StrategicNotes[], options: RunOptions = { ticksPerGeneration: 60 }): Promise<RunResults> {
+export async function run(createPlayer: AgentTeam['createPlayer'], dispatch: DispatchFn, state: GameState, priorNotes: StrategicNotes[], options: RunOptions = { ticksPerGeneration: 60 }): Promise<RunResults> {
   let currentState = state
   const transcript: TickInteraction[] = []
+
+  const player = createPlayer(priorNotes)
 
   for (let i = 0; i < options.ticksPerGeneration; i++) {
     if (isGameOver(state)) {
       break
     }
-    const prompt = createAgentPrompt(currentState, i === 0 ? priorNotes : undefined)
-    const response = await agent(prompt)
+    const prompt = createAgentPrompt(currentState)
+    const response = await player.play(prompt)
     transcript.push({ prompt, response })
     for (const action of toGameActions(response.action, currentState)) {
       currentState = await dispatch(currentState, action)
@@ -35,9 +38,9 @@ export async function run(agent: Agent, dispatch: DispatchFn, state: GameState, 
   return { state: currentState, transcript }
 }
 
-export function createRunner(agent: Agent, notesAgent: NotesAgent, dispatch: DispatchFn, config: { ticksPerGeneration: number } = { ticksPerGeneration: 60 }) {
+export function createRunner(createPlayer: AgentTeam['createPlayer'], notesAgent: NotesAgent, dispatch: DispatchFn, config: { ticksPerGeneration: number } = { ticksPerGeneration: 60 }) {
   return async (priorState: GameState, priorNotes: StrategicNotes[]) => {
-    const { state, transcript } = await run(agent, dispatch, priorState, priorNotes, config)
+    const { state, transcript } = await run(createPlayer, dispatch, priorState, priorNotes, config)
     const notes = await notesAgent(priorNotes, transcript)
     return { state, notes }
   }

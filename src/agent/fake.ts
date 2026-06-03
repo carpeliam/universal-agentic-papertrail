@@ -3,6 +3,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import type { InvestmentRiskMode, ProjectId } from 'paperclips-remake'
 import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction, PromptAction } from '@/types'
+import type { AgentTeam } from '.'
 
 const SUMMARY_LOG_FILE = path.resolve('data/run-summary.jsonl')
 type GenerationLogEntry = {
@@ -111,7 +112,7 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
   }
 }
 
-export default function createFakeAgent() {
+export default function createFakeAgent(): AgentTeam {
   fs.writeFileSync(SUMMARY_LOG_FILE, '', 'utf8')
 
   let tickCount = 0
@@ -121,7 +122,7 @@ export default function createFakeAgent() {
   let project40PriceTarget: number
   const haveSeenProject: Record<string, boolean> = { project37: false, project38: false, project40: false }
 
-  async function maker(prompt: AgentPrompt): Promise<AgentResponse> {
+  async function play(prompt: AgentPrompt): Promise<AgentResponse> {
     await new Promise(resolve => setTimeout(resolve, 5))
     const previousState = capturedState
     capturedState = prompt.state
@@ -534,5 +535,5 @@ export default function createFakeAgent() {
     return { action: { type: 'wait', turns: 1 }, reasoning: 'Nothing available — waiting.' }
   }
 
-  return { maker, summarize }
+  return { createPlayer: () => ({ play }), summarize }
 }

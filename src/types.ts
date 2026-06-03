@@ -132,7 +132,6 @@ export type StrategicNotes = z.infer<typeof strategicNotesSchema>
 export type AgentPrompt = {
   state: AgentState
   actions: AgentActions
-  priorNotes?: StrategicNotes[]
 }
 
 export type TickInteraction = {

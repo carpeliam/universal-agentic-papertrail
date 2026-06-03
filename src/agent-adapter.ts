@@ -1,5 +1,5 @@
-import { getStallState, getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
-import type { AgentAction, AgentActions, AgentPrompt, AgentState, Description, PromptAction, ProbeTrustTarget, StrategicNotes } from "./types"
+import { getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
+import type { AgentAction, AgentActions, AgentPrompt, AgentState, Description, PromptAction, ProbeTrustTarget } from "./types"
 
 function areAutoClippersVisible(state: GameState) {
   return state.earth.humanFlag &&
@@ -293,8 +293,8 @@ export function getActions(state: GameState): AgentActions {
   }
 }
 
-export function createAgentPrompt(state: GameState, priorNotes?: StrategicNotes[]): AgentPrompt {
-  return { state: toAgentState(state), actions: getActions(state), priorNotes }
+export function createAgentPrompt(state: GameState): AgentPrompt {
+  return { state: toAgentState(state), actions: getActions(state) }
 }
 
 export function toGameActions(action: AgentAction, state: GameState): GameAction[] {

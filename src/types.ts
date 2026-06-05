@@ -74,7 +74,7 @@ const projectIdSchema = z.string() as z.ZodType<ProjectId>
 const probeTrustTargetSchema = z.enum(['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone', 'combat'])
 export type ProbeTrustTarget = z.infer<typeof probeTrustTargetSchema>
 
-const agentActionSchema = z.discriminatedUnion('type', [
+export const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('makeClip') }),
   z.object({ type: z.literal('buyWire') }),
   z.object({ type: z.literal('buyFactory') }),
@@ -104,11 +104,10 @@ const agentActionSchema = z.discriminatedUnion('type', [
 ])
 export type AgentAction = z.infer<typeof agentActionSchema>
 
-export const agentResponseSchema = z.object({
-  action: agentActionSchema,
-  reasoning: z.string(),
-})
-export type AgentResponse = z.infer<typeof agentResponseSchema>
+export type AgentResponse = {
+  action: AgentAction
+  reasoning?: string
+}
 
 export type Description = string & { readonly __description: unique symbol }
 type Describable<T> = {

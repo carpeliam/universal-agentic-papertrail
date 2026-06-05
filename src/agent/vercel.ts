@@ -5,7 +5,7 @@ import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
 import { openrouter } from '@openrouter/ai-sdk-provider'
-import { agentResponseSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction } from "@/types"
+import { agentActionSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction } from "@/types"
 import { AgentTeam } from "."
 
 const ollama = createOllama()
@@ -18,7 +18,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
     this.model = this.languageModelFor(agentSpec)
   }
 
-  protected async submit(content: string): Promise<z.infer<TSchema>> {
+  protected async submit(content: string): Promise<{ output: z.infer<TSchema>, reasoning: string | undefined }> {
     this.messages.push({ role: 'user', content })
 
     let messages = [...this.messages]
@@ -33,7 +33,9 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
         })
         this.messages.push(...responseMessages)
         this.log(JSON.stringify(output))
-        return output
+        const assistantContent = responseMessages.find(m => m.role === 'assistant')?.content
+        const reasoning = (Array.isArray(assistantContent)) ? assistantContent.find(c => c.type === 'reasoning')?.text : undefined
+        return { output, reasoning }
       } catch (err) {
         console.warn(err)
         if (i === maxAttempts - 1) {
@@ -81,10 +83,8 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
   }
 }
 
-class Player extends Communicator<typeof agentResponseSchema> {
-  static actionInstructions = `Choose one action from the set of available actions. Explain your \
-reasoning in terms of your current strategic situation — what you're trying to achieve, why this \
-action advances it, and what you expect to happen.`
+class Player extends Communicator<typeof agentActionSchema> {
+  static actionInstructions = `Choose one action from the set of available actions.`
   static firstTickSuffix = `
 
 In-game time is a real cost. A "wait" action that sets up something meaningful beats busy action \
@@ -103,7 +103,7 @@ to discover. Make your best guess and update as you go. ${Player.firstTickSuffix
 You're on a bit of an adventure, picking up where someone else left off. Not to worry, they left you \
 notes — treat them like cliff notes for everything that happened before you arrived. Read them to orient \
 yourself, but trust the current state over the notes; things may have moved on since they were written. ${Player.firstTickSuffix}`
-  schema = agentResponseSchema
+  schema = agentActionSchema
 
   constructor(agentSpec: LLMAgentSpec, priorNotes: StrategicNotes[], verbosity = 0) {
     const systemMessage = (priorNotes.length)
@@ -115,12 +115,13 @@ yourself, but trust the current state over the notes; things may have moved on s
   async play(prompt: AgentPrompt): Promise<AgentResponse> {
     const { actions, state } = prompt
     this.log('prompting with available actions:', JSON.stringify(actions.available))
-    return await this.submit([
+    const { output, reasoning } = await this.submit([
       Player.actionInstructions,
       `Current environment: ${JSON.stringify(state)}`,
       `Available actions: ${JSON.stringify(actions.available)}`,
       `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}`,
     ].join('\n'))
+    return { action: output, reasoning }
   }
 }
 
@@ -146,7 +147,8 @@ Be selective. Omit anything that is no longer relevant. The next agent will act 
   async summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
     this.startFreshEveryTime()
     this.log('summarizing')
-    return await this.submit(`Prior notes:\n${JSON.stringify(priorNotes)}\n\nTranscript:\n${JSON.stringify(transcript)}`)
+    const { output } = await this.submit(`Prior notes:\n${JSON.stringify(priorNotes)}\n\nTranscript:\n${JSON.stringify(transcript)}`)
+    return output
   }
 
   private startFreshEveryTime() { this.messages = [] }

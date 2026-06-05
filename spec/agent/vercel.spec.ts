@@ -41,10 +41,7 @@ import { getActions, toAgentState } from '@/agent-adapter'
 
 const mockGenerateText = vi.mocked(generateText)
 
-const mockAgentResponse = {
-  action: { type: 'makeClip' } as AgentAction,
-  reasoning: 'Just getting started',
-}
+const mockAgentAction: AgentAction = { type: 'makeClip' }
 
 const mockStrategicNotes: StrategicNotes = {
   importantUnlocks: [],
@@ -60,16 +57,23 @@ function prompt(): AgentPrompt {
   return { state, actions }
 }
 
-function mockGenerateTextOutput(output: object) {
+function mockGenerateTextOutput(output: object, reasoning = 'this seems like a good idea') {
   return {
     output,
-    response: { messages: [{ role: 'assistant', content: JSON.stringify(output) }] },
+    response: {
+      messages: [{
+        role: 'assistant', content: [
+          { type: 'reasoning', text: reasoning },
+          { type: 'text', text: JSON.stringify(output) },
+        ],
+      }],
+    },
   } as GenerateTextResult<{}, any>
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockGenerateText.mockResolvedValue(mockGenerateTextOutput(mockAgentResponse))
+  mockGenerateText.mockResolvedValue(mockGenerateTextOutput(mockAgentAction, 'Just getting started!'))
 })
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -91,76 +95,72 @@ describe('player', () => {
 
     const response = await player.play(prompt())
 
-    expect(response).toEqual(mockAgentResponse)
+    expect(response).toEqual({ action: mockAgentAction, reasoning: 'Just getting started!' })
   })
 
-  describe('first generation', () => {
-    it('can start a conversation', async () => {
-      const player = createPlayer([])
+  it('can start a conversation on the first generation', async () => {
+    const player = createPlayer([])
 
-      await player.play(prompt())
+    await player.play(prompt())
 
-      expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-        system: expect.stringContaining("You're starting fresh with no prior context"),
-        messages: [
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-        ],
-      }))
-      let generateTextPayload = mockGenerateText.mock.calls[0][0]
-      expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.available))
-      expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.unavailable))
-      expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(state))
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      system: expect.stringContaining("You're starting fresh with no prior context"),
+      messages: [
+        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+      ],
+    }))
+    let generateTextPayload = mockGenerateText.mock.calls[0][0]
+    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.available))
+    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.unavailable))
+    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(state))
 
-      await player.play(prompt())
+    await player.play(prompt())
 
-      expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-        system: expect.stringContaining("You're starting fresh with no prior context"),
-        messages: [
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-          { role: 'assistant', content: JSON.stringify(mockAgentResponse) },
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-        ],
-      }))
-      generateTextPayload = mockGenerateText.mock.calls[1][0]
-      expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.available))
-      expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.unavailable))
-      expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(state))
-    })
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      system: expect.stringContaining("You're starting fresh with no prior context"),
+      messages: [
+        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+        { role: 'assistant', content: expect.arrayContaining([{ type: 'text', text: JSON.stringify(mockAgentAction) }]) },
+        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+      ],
+    }))
+    generateTextPayload = mockGenerateText.mock.calls[1][0]
+    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.available))
+    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.unavailable))
+    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(state))
   })
 
-  describe('nth generation', () => {
-    it('can carry a conversation', async () => {
-      const player = createPlayer([mockStrategicNotes])
+  it('can carry a conversation on the nth generation', async () => {
+    const player = createPlayer([mockStrategicNotes])
 
-      await player.play(prompt())
+    await player.play(prompt())
 
-      expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-        system: expect.stringContaining('picking up where someone else left off'),
-        messages: [
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-        ],
-      }))
-      let generateTextPayload = mockGenerateText.mock.calls[0][0]
-      expect(generateTextPayload.system).toContain(JSON.stringify([mockStrategicNotes]))
-      expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.available))
-      expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.unavailable))
-      expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(state))
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      system: expect.stringContaining('picking up where someone else left off'),
+      messages: [
+        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+      ],
+    }))
+    let generateTextPayload = mockGenerateText.mock.calls[0][0]
+    expect(generateTextPayload.system).toContain(JSON.stringify([mockStrategicNotes]))
+    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.available))
+    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.unavailable))
+    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(state))
 
-      await player.play(prompt())
+    await player.play(prompt())
 
-      expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-        system: expect.stringContaining('picking up where someone else left off'),
-        messages: [
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-          { role: 'assistant', content: JSON.stringify(mockAgentResponse) },
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-        ],
-      }))
-      generateTextPayload = mockGenerateText.mock.calls[1][0]
-      expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.available))
-      expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.unavailable))
-      expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(state))
-    })
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      system: expect.stringContaining('picking up where someone else left off'),
+      messages: [
+        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+        { role: 'assistant', content: expect.arrayContaining([{ type: 'text', text: JSON.stringify(mockAgentAction) }]) },
+        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+      ],
+    }))
+    generateTextPayload = mockGenerateText.mock.calls[1][0]
+    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.available))
+    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.unavailable))
+    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(state))
   })
 
   describe('when a schema validation is encountered', () => {
@@ -172,11 +172,11 @@ describe('player', () => {
           cause: new Error('Invalid input: expected number, received undefined'),
           text: '{"action":{"type":"wait"},"reasoning":"We have a healthy supply of wire"}',
         } as any))
-        .mockResolvedValueOnce(mockGenerateTextOutput(mockAgentResponse))
+        .mockResolvedValueOnce(mockGenerateTextOutput(mockAgentAction))
 
       const response = await player.play(prompt())
 
-      expect(response).toEqual(mockAgentResponse)
+      expect(response).toEqual(expect.objectContaining({ action: mockAgentAction }))
       expect(mockGenerateText).toHaveBeenCalledTimes(2)
       expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
         system: expect.stringContaining("You're starting fresh with no prior context"),
@@ -199,7 +199,7 @@ describe('player', () => {
         system: expect.stringContaining("You're starting fresh with no prior context"),
         messages: [
           { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-          { role: 'assistant', content: JSON.stringify(mockAgentResponse) },
+          { role: 'assistant', content: expect.arrayContaining([{ type: 'text', text: JSON.stringify(mockAgentAction) }]) },
           { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
         ],
       }))
@@ -212,7 +212,7 @@ describe('player', () => {
       const player = createPlayer([])
       mockGenerateText
         .mockRejectedValueOnce(new APICallError({ message: 'The operation was aborted', isRetryable: false, data: { code: 504 } } as any))
-        .mockResolvedValueOnce(mockGenerateTextOutput(mockAgentResponse))
+        .mockResolvedValueOnce(mockGenerateTextOutput(mockAgentAction))
 
       const response = player.play(prompt())
 
@@ -221,7 +221,7 @@ describe('player', () => {
       await vi.advanceTimersByTimeAsync(1)
       expect(mockGenerateText).toHaveBeenCalledTimes(2)
 
-      expect(await response).toEqual(mockAgentResponse)
+      expect(await response).toEqual(expect.objectContaining({ action: mockAgentAction }))
     })
   })
 })
@@ -232,7 +232,7 @@ describe('summarize', () => {
   const mockTranscript: TickInteraction[] = [
     {
       prompt: prompt(),
-      response: mockAgentResponse,
+      response: { action: mockAgentAction, reasoning: '' },
     },
   ]
 

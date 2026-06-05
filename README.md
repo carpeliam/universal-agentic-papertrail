@@ -8,7 +8,7 @@ An experiment in agentic play. Your LLM plays [Universal Paperclips](https://www
 
 This builds on top of a [forked copy](https://github.com/carpeliam/paperclips) of [PaulAtkins88/paperclips](https://github.com/PaulAtkins88/paperclips), built to expose a domain layer that an agent can interact with directly.
 
-Given a starting state (limited to only the information a human would see), an agent runs for ~60s, making decisions and rationalizing them. Those decisions are then summarized and passed off to the next generation, ad infinitum until the game is completed or stalled. Each generation will see the summaries of the 3 generations that came before it.
+Given a starting state (limited to only the information a human would see), an agent runs for some number of ticks, making decisions and rationalizing them. Those decisions are then summarized and passed off to the next generation, ad infinitum until the game is completed or stalled. Each generation will see the summaries of the generations that came before it.
 
 ## Backstory: A Timeline
 

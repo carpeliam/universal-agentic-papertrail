@@ -15,7 +15,7 @@ export interface RunResults {
   state: GameState
   transcript: TickInteraction[]
 }
-export async function run(createPlayer: AgentTeam['createPlayer'], dispatch: DispatchFn, state: GameState, priorNotes: StrategicNotes[], options: RunOptions = { ticksPerGeneration: 60 }): Promise<RunResults> {
+export async function run(createPlayer: AgentTeam['createPlayer'], dispatch: DispatchFn, state: GameState, priorNotes: StrategicNotes[], options: RunOptions): Promise<RunResults> {
   let currentState = state
   const transcript: TickInteraction[] = []
 
@@ -38,7 +38,7 @@ export async function run(createPlayer: AgentTeam['createPlayer'], dispatch: Dis
   return { state: currentState, transcript }
 }
 
-export function createRunner(createPlayer: AgentTeam['createPlayer'], notesAgent: NotesAgent, dispatch: DispatchFn, config: { ticksPerGeneration: number } = { ticksPerGeneration: 60 }) {
+export function createRunner(createPlayer: AgentTeam['createPlayer'], notesAgent: NotesAgent, dispatch: DispatchFn, config: { ticksPerGeneration: number } = { ticksPerGeneration: 45 }) {
   return async (priorState: GameState, priorNotes: StrategicNotes[]) => {
     const { state, transcript } = await run(createPlayer, dispatch, priorState, priorNotes, config)
     const notes = await notesAgent(priorNotes, transcript)

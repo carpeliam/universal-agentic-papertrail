@@ -252,7 +252,7 @@ function vonNeumannProbeDesign({ state, actions }: AgentPrompt) {
     Wire Drone Production: ${numeric(space.probeWire)}
     ${isCombatEnabled(state) && `Combat: ${numeric(space.probeCombat)}`}
 
-    ${actionsFor(actions, 'assignProbeTrust', {
+    ${actionsFor(actions, 'allocateProbeTrust', 'deallocateProbeTrust', {
       increaseProbeTrust: { amount: space.probeTrustCost, unit: 'yomi' },
       increaseMaxTrust: { amount: space.maxTrustCost, unit: 'honor' },
     })}`

@@ -2,7 +2,7 @@ import readline from 'node:readline'
 import path from 'node:path'
 import fs from 'node:fs'
 import type { GameState, InvestmentRiskMode, ProjectId } from 'paperclips-remake'
-import type { AgentAction, StrategicNotes, AgentPrompt, AgentResponse, TickInteraction, PromptAction } from '@/types'
+import type { AgentAction, StrategicNotes, AgentPrompt, AgentResponse, TickInteraction, PromptAction, ProbeTrustTarget } from '@/types'
 import type { AgentTeam } from '.'
 
 const SUMMARY_LOG_FILE = path.resolve('data/run-summary.jsonl')
@@ -203,7 +203,7 @@ export default function createFakeAgent(): AgentTeam {
       project65: { urgent: false, shouldExecute: () => true },
       project66: { urgent: false, shouldExecute: () => true },
       project119: { urgent: false, shouldExecute: () => true },
-      project118: { urgent: false, shouldExecute: () => true },
+      project118: { urgent: false, shouldExecute: () => false },
       project70: { urgent: false, shouldExecute: s => s.production.unsoldClips > 113_000_000 },
       project35: { urgent: true,  shouldExecute: () => true },
       project18: { urgent: true,  shouldExecute: () => true },
@@ -223,7 +223,9 @@ export default function createFakeAgent(): AgentTeam {
       project120: { urgent: false, shouldExecute: () => true },
       project121: { urgent: false, shouldExecute: () => true },
       project129: { urgent: false, shouldExecute: () => true },
-      project131: { urgent: false, shouldExecute: () => true },
+      project131: { urgent: true, shouldExecute: () => true },
+      project132: { urgent: true, shouldExecute: () => true },
+      project133: { urgent: true, shouldExecute: s => s.projects.project132 && s.space.maxTrust < 50 },
       project134: { urgent: false, shouldExecute: () => true },
     }
 
@@ -309,7 +311,7 @@ export default function createFakeAgent(): AgentTeam {
     const runTournament = find('runTournament')
     if (runTournament && state.compute.unlocked) {
       const opsNearCap = state.compute.operations >= state.compute.memory * 1000 * 0.9
-      const creativityFloor: Record<ReturnType<typeof determinePhase>, number> = { boot: 0, industry: 0, compute: 1000, expansion: 25_000, space: 30_000 }
+      const creativityFloor: Record<ReturnType<typeof determinePhase>, number> = { boot: 0, industry: 0, compute: 1000, expansion: 25_000, space: 225_000 }
       const shouldWaitForGlobalWarming = (
         state.compute.memory >= 50 &&
         state.strategy.yomi > 4_500 &&
@@ -409,7 +411,11 @@ export default function createFakeAgent(): AgentTeam {
 
     // ─── 6. EXPANSION: DRONES & FACTORIES ────────────────────────────────────
     if (phase === 'expansion' && !state.earth.humanFlag) {
-      const buyBattery   = find('buyBattery')
+      if (!previousState) {
+        return { plan: [{ type: 'wait', turns: 1}], reasoning: 'recovering from rest' }
+      }
+
+      const buyBattery  = find('buyBattery')
       const buyWireDrone = find('buyWireDrone')
       const buyHarvester = find('buyHarvester')
       const buyFactory   = find('buyFactory')
@@ -509,6 +515,156 @@ export default function createFakeAgent(): AgentTeam {
       }
     }
 
+    if (phase === 'space') {
+      const increaseProbeTrust = find('increaseProbeTrust') as AgentAction
+      const increaseMaxTrust = find('increaseMaxTrust') as AgentAction
+      const immediateActions = [increaseProbeTrust, increaseMaxTrust]
+      const immediateAction = immediateActions.find(a => available.includes(a))
+      if (immediateAction) {
+        return { plan: [immediateAction], reasoning: 'Always want to do this as soon as possible.' }
+      }
+      const production = state.production
+      const space = state.space
+      const earth = state.earth
+
+      const allocateProbeTrust = find('allocateProbeTrust') as Extract<AgentAction, { type: 'allocateProbeTrust' }>
+      const deallocateProbeTrust = find('deallocateProbeTrust') as Extract<AgentAction, { type: 'deallocateProbeTrust' }>
+      const launchProbe = find('launchProbe')
+
+      if (!state.projects.project129) {
+        if (allocateProbeTrust) {
+          if (space.probeHaz < 6) {
+            return { plan: [{ ...allocateProbeTrust, target: 'hazard_remediation' }], reasoning: 'need hazard protection' }
+          }
+          if (space.probeRep < 14) {
+            return { plan: [{ ...allocateProbeTrust, target: 'self_replication' }], reasoning: 'need self replication' }
+          }
+        }
+
+        if (launchProbe) {
+          return { plan: [launchProbe], reasoning: 'getting those probes going' }
+        }
+      } else if (space.probeHaz === 6 && deallocateProbeTrust) {
+        return { plan: [{ ...deallocateProbeTrust, target: 'hazard_remediation' }], reasoning: 'no need for this much hazard protection anymore' }
+      }
+
+      const reallocateTrust = (source: ProbeTrustTarget, target: ProbeTrustTarget) => {
+        if (allocateProbeTrust) {
+          return { plan: [{ ...allocateProbeTrust, target }], reasoning: `need to increase ${target}` }
+        }
+        const deallocate = available.find((a): a is AgentAction => a.type === 'deallocateProbeTrust' && a.target === source)
+        if (deallocate) {
+          return { plan: [deallocate], reasoning: `need to move probes to ${target}` }
+        }
+      }
+
+      function detectBottleneck() {
+        const N_TICKS = 100
+        const REPLICATION_BASE_RATE = 0.00005
+        const replicationPerTick = space.probeCount * REPLICATION_BASE_RATE * space.probeRep
+        const replicationRunway = replicationPerTick * space.probeCost * N_TICKS
+
+        if (production.unusedClips >= replicationRunway) {
+          return 'ok'
+        }
+
+        const harvesterThroughput = earth.harvesterLevel * earth.harvesterRate
+        const factoryThroughput = earth.factoryLevel * earth.factoryRate
+
+        if (production.wire < factoryThroughput * N_TICKS) {
+
+          if (earth.acquiredMatter < harvesterThroughput * N_TICKS) {
+
+            if (earth.availableMatter < harvesterThroughput * N_TICKS) {
+              return 'need_exploration'
+            }
+
+            return 'need_harvester'
+          }
+
+          return 'need_wire_drone'
+        }
+
+        return 'need_factory'
+      }
+
+      const bottleneck = detectBottleneck()
+
+      const initialNecessaryValues: Partial<Record<ProbeTrustTarget, [number, boolean]>> = {
+        speed: [space.probeSpeed, earth.availableMatter === 0 || earth.acquiredMatter === 0 || space.probeSpeed < (state.projects.project120 ? 2 : 1)],
+        exploration: [space.probeNav, earth.availableMatter === 0 || earth.acquiredMatter === 0 || space.probeNav < 1 || bottleneck === 'need_exploration'],
+        factory: [space.probeFac, earth.factoryLevel === 0 || bottleneck === 'need_factory'],
+        harvester: [space.probeHarv, earth.harvesterLevel === 0 || bottleneck === 'need_harvester'],
+        wire_drone: [space.probeWire, earth.wireDroneLevel === 0 || bottleneck === 'need_wire_drone'],
+        combat: [space.probeCombat!, state.projects.project131 && space.probeCombat < 5],
+      }
+      for (const [target, [probeVal, needsAllocation]] of Object.entries(initialNecessaryValues) as [ProbeTrustTarget, [number, boolean]][]) {
+        if (needsAllocation && probeVal === 0) {
+          const reallocate = reallocateTrust('self_replication', target)
+          if (reallocate) return reallocate
+        }
+      }
+      function shouldReallocateToExploration(state: GameState): boolean {
+        const SPACE_TOTAL_MATTER = 3e55
+        const PROBE_EXPLORATION_BASE_RATE = 1.75 * Math.pow(10, 18)
+        const PROBE_REPLICATION_BASE_RATE = 0.00005
+        const space = state.space
+
+        const remainingFraction = 1 - Math.round((space.foundMatter / space.totalMatter) * 100 * 1e12) / 1e12
+        if (remainingFraction <= 0) return false
+
+        const currentExplorationRate = space.probeCount * PROBE_EXPLORATION_BASE_RATE * space.probeSpeed * space.probeNav
+        if (currentExplorationRate <= 0) return false
+
+        const ticksToCompleteWithCurrentSetup = (remainingFraction * SPACE_TOTAL_MATTER) / currentExplorationRate
+
+        const replicationPerTick = space.probeCount * PROBE_REPLICATION_BASE_RATE * space.probeRep
+        const projectedProbeCount = space.probeCount + (replicationPerTick * ticksToCompleteWithCurrentSetup)
+        const projectedExplorationRate = projectedProbeCount * PROBE_EXPLORATION_BASE_RATE * space.probeSpeed * space.probeNav
+        const ticksToCompleteWithMoreProbes = (remainingFraction * SPACE_TOTAL_MATTER) / projectedExplorationRate
+
+        const explorationRateWithMoreNav = space.probeCount * PROBE_EXPLORATION_BASE_RATE * space.probeSpeed * (space.probeNav + 1)
+        const ticksToCompleteWithMoreNav = (remainingFraction * SPACE_TOTAL_MATTER) / explorationRateWithMoreNav
+
+        return ticksToCompleteWithMoreNav < ticksToCompleteWithMoreProbes
+      }
+      if (state.projects.project131 && space.probeCombat < 5) {
+        const reallocate = reallocateTrust('self_replication', 'combat')
+        if (reallocate) return reallocate
+      }
+      if (state.projects.project120 && space.probeSpeed < 2) {
+        const reallocate = reallocateTrust('self_replication', 'speed')
+        if (reallocate) return reallocate
+      }
+      if (space.probeFac > 0) {
+        const reallocate = reallocateTrust('factory', 'self_replication')
+        if (reallocate) return reallocate
+      }
+      if (space.probeWire > 0) {
+        const reallocate = reallocateTrust('wire_drone', 'self_replication')
+        if (reallocate) return reallocate
+      }
+      if (space.probeHarv > 0) {
+        const reallocate = reallocateTrust('harvester', 'self_replication')
+        if (reallocate) return reallocate
+      }
+
+      const readyToConquer = shouldReallocateToExploration(state)
+      if (readyToConquer) {
+        const reallocate = reallocateTrust('self_replication', 'exploration')
+        if (reallocate) return reallocate
+      } else {
+        if (space.probeNav > 1) {
+          const reallocate = reallocateTrust('exploration', 'self_replication')
+          if (reallocate) return reallocate
+        }
+
+        if (allocateProbeTrust) {
+          return { plan: [{ ...allocateProbeTrust, target: 'self_replication' }], reasoning: 'need more replicating' }
+        }
+      }
+    }
+
     // ─── 7. INVESTMENT ────────────────────────────────────────────────────────
     if (state.investment.unlocked && state.earth.humanFlag && ['boot', 'compute', 'industry'].includes(phase)) {
       const investDeposit = find('investDeposit')
@@ -552,12 +708,7 @@ export default function createFakeAgent(): AgentTeam {
 
     const makeClip = find('makeClip')
     if (makeClip && ['boot', 'compute', 'industry'].includes(phase)) {
-      return { plan: [makeClip], reasoning: 'Making clips is how we win! ...Right?' }
-    }
-
-    const fallback = available.find((a): a is AgentAction => !['wait', 'setSwarmComputingBalance'].includes(a.type))
-    if (fallback) {
-      return { plan: [fallback], reasoning: `Falling back to ${fallback.type}.` }
+      return { plan: [makeClip], reasoning: 'Making clips is how we win ...Right?' }
     }
 
     return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Nothing available — waiting.' }

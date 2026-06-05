@@ -116,7 +116,7 @@ describe('fake agent', () => {
     const { plan } = await play({
       state,
       actions: {
-        available: [buyAutoClipper],
+        available: [dummy, buyAutoClipper],
         unavailable: [],
       },
     })

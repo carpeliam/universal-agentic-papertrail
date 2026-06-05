@@ -85,12 +85,34 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
   },
   {
     isVisible: (s) => s.earth.spaceFlag,
-    canActivate: (s) => s.strategy.yomi >= s.space.probeTrustCost && s.space.probeTrust < s.space.maxTrust,
+    canActivate: (s) => s.strategy.yomi >= s.space.probeTrustCost && s.space.probeUsedTrust < s.space.probeTrust,
     actions: (s) => (
-      (['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone', 'combat'] as ProbeTrustTarget[])
-        .map(target => ({ type: 'assignProbeTrust' as const, target }))
+      (['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone'] as ProbeTrustTarget[])
+        .map(target => ({ type: 'allocateProbeTrust' as const, target }))
     ),
   },
+  {
+    isVisible: (s) => s.earth.spaceFlag && s.projects.project131,
+    canActivate: (s) => s.strategy.yomi >= s.space.probeTrustCost && s.space.probeUsedTrust < s.space.probeTrust && s.projects.project131,
+    actions: (s) => [{ type: 'allocateProbeTrust' as const, target: 'combat' }],
+  },
+  ...(['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone', 'combat'] as ProbeTrustTarget[]).map((target): ActionDescriptor => ({
+    isVisible: (s) => s.earth.spaceFlag && (target !== 'combat' || s.projects.project131),
+    canActivate: (s) => {
+      const currentTargetTrust = {
+        speed: s.space.probeSpeed,
+        exploration: s.space.probeNav,
+        self_replication: s.space.probeRep,
+        hazard_remediation: s.space.probeHaz,
+        factory: s.space.probeFac,
+        harvester: s.space.probeHarv,
+        wire_drone: s.space.probeWire,
+        combat: s.space.probeCombat,
+      }[target]
+      return s.earth.spaceFlag && currentTargetTrust > 0 && (target !== 'combat' || s.projects.project131)
+    },
+    actions: (s) => [{ type: 'deallocateProbeTrust' as const, target }],
+  })),
   {
     isVisible: (s) => s.earth.humanFlag,
     canActivate: (s) => s.production.funds >= s.economy.adCost,
@@ -180,6 +202,16 @@ export function createAgentPrompt(state: GameState): AgentPrompt {
   return { state, actions: getActions(state) }
 }
 
+const gameStateProbeTrust: Record<ProbeTrustTarget, Extract<GameAction, { type: 'allocateProbeTrust' }>['target']> = {
+  speed: 'speed',
+  exploration: 'nav',
+  self_replication: 'rep',
+  hazard_remediation: 'haz',
+  factory: 'fac',
+  harvester: 'harv',
+  wire_drone: 'wire',
+  combat: 'combat',
+}
 export function toGameActions(action: AgentAction, state: GameState): GameAction[] {
   switch (action.type) {
     case 'wait':
@@ -208,18 +240,11 @@ export function toGameActions(action: AgentAction, state: GameState): GameAction
       const cycles = (targetIndex - currentIndex + strategyOptions.length) % strategyOptions.length
       return Array(cycles).fill({ type: 'cycleStrategySelection' })
     }
-    case 'assignProbeTrust': {
-      const agent2GameTarget: Record<ProbeTrustTarget, Extract<GameAction, { type: 'assignProbeTrust' }>['target']> = {
-        speed: 'speed',
-        exploration: 'nav',
-        self_replication: 'rep',
-        hazard_remediation: 'haz',
-        factory: 'fac',
-        harvester: 'harv',
-        wire_drone: 'wire',
-        combat: 'combat',
-      }
-      return [{ type: 'assignProbeTrust', target: agent2GameTarget[action.target] }]
+    case 'allocateProbeTrust': {
+      return [{ type: 'allocateProbeTrust', target: gameStateProbeTrust[action.target] }]
+    }
+    case 'deallocateProbeTrust': {
+      return [{ type: 'deallocateProbeTrust', target: gameStateProbeTrust[action.target] }]
     }
     default:
       return [action] as GameAction[]
@@ -232,7 +257,8 @@ export function actionDuration(action: AgentAction): number {
     case 'raisePrice':
     case 'lowerPrice':
     case 'increaseProbeTrust':
-    case 'assignProbeTrust':
+    case 'allocateProbeTrust':
+    case 'deallocateProbeTrust':
       return 100
     case 'wait':
       return action.turns * 1_000

@@ -419,7 +419,8 @@ describe('displayPrompt', () => {
       expect(prompt).not.toContain('Combat:')
       expect(prompt).toContain(' increaseProbeTrust [cost: 43,916 yomi]')
       expect(prompt).toContain(' increaseMaxTrust [cost: 91,118 honor]')
-      expect(prompt).toContain(' assignProbeTrust')
+      expect(prompt).toContain(' allocateProbeTrust')
+      expect(prompt).toContain(' deallocateProbeTrust')
 
       prompt = displayPromptWithState(withCombat(), {
         space: { probeCombat: 5 },

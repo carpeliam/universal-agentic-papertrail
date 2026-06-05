@@ -252,6 +252,26 @@ describe('getActions', () => {
     const allActionTypes = [...actions.available, ...actions.unavailable].map(a => a.type)
     expect(allActionTypes).not.toContain('buyHarvester')
   })
+
+  it('classifies deallocation actions as available or unavailable depending on their amounts', () => {
+    const spaceState = applyGameState(withSpacePhase(), {
+      space: {
+        maxTrust: 8,
+        probeUsedTrust: 4,
+        probeSpeed: 1,
+        probeRep: 1,
+        probeFac: 1,
+        probeWire: 1,
+        probeCombat: 1,
+      },
+      projects: {
+        project131: true,
+      },
+    })
+    const actions = getActions(spaceState)
+    expect(actions.available.filter(a => a.type === 'deallocateProbeTrust').map(a => a.target)).toEqual(['speed', 'self_replication', 'factory', 'wire_drone', 'combat'])
+    expect(actions.unavailable.filter(a => a.type === 'deallocateProbeTrust').map(a => a.target)).toEqual(['exploration', 'hazard_remediation', 'harvester'])
+  })
 })
 
 // TODO we have other actions to manage here before we're done
@@ -314,22 +334,22 @@ describe('toGameActions', () => {
 
   it('translates probe trust allocation targets', () => {
     const spaceState = applyGameState(withSpacePhase())
-    let actions = toGameActions({ type: 'assignProbeTrust', target: 'speed' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'speed' })
-    actions = toGameActions({ type: 'assignProbeTrust', target: 'exploration' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'nav' })
-    actions = toGameActions({ type: 'assignProbeTrust', target: 'self_replication' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'rep' })
-    actions = toGameActions({ type: 'assignProbeTrust', target: 'hazard_remediation' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'haz' })
-    actions = toGameActions({ type: 'assignProbeTrust', target: 'factory' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'fac' })
-    actions = toGameActions({ type: 'assignProbeTrust', target: 'harvester' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'harv' })
-    actions = toGameActions({ type: 'assignProbeTrust', target: 'wire_drone' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'wire' })
-    actions = toGameActions({ type: 'assignProbeTrust', target: 'combat' }, spaceState)
-    expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'combat' })
+    let actions = toGameActions({ type: 'allocateProbeTrust', target: 'speed' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'speed' })
+    actions = toGameActions({ type: 'allocateProbeTrust', target: 'exploration' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'nav' })
+    actions = toGameActions({ type: 'allocateProbeTrust', target: 'self_replication' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'rep' })
+    actions = toGameActions({ type: 'allocateProbeTrust', target: 'hazard_remediation' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'haz' })
+    actions = toGameActions({ type: 'allocateProbeTrust', target: 'factory' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'fac' })
+    actions = toGameActions({ type: 'allocateProbeTrust', target: 'harvester' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'harv' })
+    actions = toGameActions({ type: 'allocateProbeTrust', target: 'wire_drone' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'wire' })
+    actions = toGameActions({ type: 'allocateProbeTrust', target: 'combat' }, spaceState)
+    expect(actions).toContainEqual({ type: 'allocateProbeTrust', target: 'combat' })
   })
 })
 

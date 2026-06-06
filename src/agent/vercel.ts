@@ -91,8 +91,8 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
 class Player extends Communicator<typeof agentActionSchema> {
   static firstTickSuffix = `
 
-In-game time is a real cost. A "wait" action that sets up something meaningful beats busy action \
-that doesn't advance your position. Deliberate when it's worth it; act when the path is clear.
+In-game time is a real cost. Use the current environment to gauge your progress and how quickly \
+you're moving toward your current goal. Deliberate when it's worth it; act when the path is clear.
 
 Unavailable actions are your horizon — reachable goals. Between the current state and the actions \
 themselves you should be able to see what's standing between you and them. Use them to identify \

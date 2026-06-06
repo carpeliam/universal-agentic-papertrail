@@ -1,14 +1,15 @@
 import { Command, InvalidArgumentError } from 'commander'
-import type { LLMAgentSpec, Provider } from './types';
+import type { LLMAgentSpec, Provider, Host } from './types';
 
 const PROVIDERS: Provider[] = ['anthropic', 'openai', 'google', 'deepseek', 'qwen', 'ollama']
-const ALIASES: Record<string, { provider: Provider; model: string }> = {
+const HOSTS: Host[] = ['openrouter']
+const ALIASES: Record<string, LLMAgentSpec> = {
   haiku:   { provider: 'anthropic', model: 'claude-haiku-4-5' },
   sonnet:  { provider: 'anthropic', model: 'claude-sonnet-4-6' },
   opus:    { provider: 'anthropic', model: 'claude-opus-4-7' },
   gpt:     { provider: 'openai', model: 'gpt-5' },
   gemini:  { provider: 'google', model: 'gemini-2.5-flash' },
-  mistral: { provider: 'ollama',    model: 'mistral' },
+  mistral: { provider: 'ollama', model: 'mistral' },
 }
 
 export type CLIConfig = (
@@ -25,24 +26,31 @@ function isProvider(value: string): value is Provider {
 }
 
 function parseSpec(value: string): LLMAgentSpec {
-  if (value in ALIASES) {
-    return { ...ALIASES[value] }
+  const match = value.match(new RegExp(`^(.+?)(?:@(${HOSTS.join('|')}))?$`))
+  if (!match) {
+    throw new InvalidArgumentError(`Unknown agent ${value}. Use a known alias (${Object.keys(ALIASES).join(', ')}) or provider/model[@host] format (e.g. anthropic/claude-opus-4-6@openrouter, ollama/gemma2:9b).`)
   }
 
-  const [provider, model] = value.split('/', 2)
+  const providerAndModel = match[1]
+  const host = match[2] as Host | undefined
+  if (providerAndModel in ALIASES) {
+    return { ...ALIASES[providerAndModel], host }
+  }
+
+  const [provider, model] = providerAndModel.split('/', 2)
   if (!model || !isProvider(provider)) {
     throw new InvalidArgumentError(
-      `Unknown model "${value}". Use a known alias (${Object.keys(ALIASES).join(', ')}) or provider/model format (e.g. anthropic/claude-opus-4-6, ollama/gemma2:9b).`
+      `Unknown agent "${providerAndModel}". Use a known alias (${Object.keys(ALIASES).join(', ')}) or provider/model[@host] format (e.g. anthropic/claude-opus-4-6@openrouter, ollama/gemma2:9b).`
     )
   }
 
-  return { provider, model }
+  return { provider, model, host }
 }
 
 export default function parseCLI(): CLIConfig {
   const program = new Command('npm start --')
-    .option('--agent <spec>', 'Agent to use: fake, an alias (haiku, sonnet, opus, gpt, mistral), or provider/model', 'fake')
-    .option('--summarizer <spec>', 'Summarizer to use: an alias or provider/model')
+    .option('--agent <spec>', 'Agent to use: fake, an alias (haiku, sonnet, opus, gpt, mistral), or provider/model[@host]', 'fake')
+    .option('--summarizer <spec>', 'Summarizer to use: follows the same format as --agent (defaults to same value as --agent if not specified)')
     .option('--wait', 'Wait for a WebSocket client connection before starting', false)
     .option('--reset', 'Clear logs before starting', false)
     .option('-v, --verbose', 'Print the agent\'s thought process to the screen', (_, prev: number) => prev + 1, 0)

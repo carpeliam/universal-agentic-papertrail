@@ -139,7 +139,12 @@ export type TickInteraction = {
 }
 
 export type Provider = 'anthropic' | 'openai' | 'google' | 'deepseek' | 'qwen' | 'ollama'
-export type LLMAgentSpec = { provider: Provider; model: string }
+export type Host = 'openrouter'
+export type LLMAgentSpec = {
+  provider: Provider
+  model: string
+  host?: Host
+}
 export type LLMAgentOptions = {
   agent: LLMAgentSpec
   summarizer: LLMAgentSpec

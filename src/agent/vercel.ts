@@ -66,7 +66,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
   }
 
   private languageModelFor(agentSpec: LLMAgentSpec) {
-    if ('OPENROUTER_API_KEY' in process.env) {
+    if (agentSpec.host === 'openrouter') {
       return openrouter(`${agentSpec.provider}/${agentSpec.model}`)
     }
     switch (agentSpec.provider) {

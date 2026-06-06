@@ -21,6 +21,18 @@ Given a starting state (limited to only the information a human would see), an a
 
 This can be run as a node.js terminal-based application, by downloading/cloning the repository and running `npm install` to install its dependencies.
 
+```
+Usage: npm start -- [options]
+
+Options:
+  --agent <spec>       Agent to use: fake, an alias (haiku, sonnet, opus, gpt, mistral), or provider/model[@host] (default: "fake")
+  --summarizer <spec>  Summarizer to use: follows the same format as --agent (defaults to same value as --agent if not specified)
+  --wait               Wait for a WebSocket client connection before starting (default: false)
+  --reset              Clear logs before starting (default: false)
+  -v, --verbose        Print the agent's thought process to the screen
+  -h, --help           display help for command
+```
+
 ### Running by itself
 `npm start` will start the game. Starting the game with an `--agent` argument will run the game with that agent until it either successfully completes the game or becomes stalled. Without an `--agent` flag (or with `--agent` set to `fake`), the computer will play semi-optimally, using human-derived strategies. Output is written to the `data/` directory.
 ```sh
@@ -40,10 +52,23 @@ This will hold off on running the game until the UI connects. To run the UI:
 You can then watch in real time as your agent's decisions play out.
 
 ### Configuring an agent
-`--agent` can have one of the following values:
-* `haiku`, `sonnet`, `opus`, `gpt`, `gemini`, or `mistral`
-* any `anthropic`, `openai`, `google`, or `ollama` model in the format `<provider>/model`, eg `ollama/qwen3:30b`.
+`--agent` accepts an alias (`haiku`, `sonnet`, `opus`, `gpt`, `gemini`, `mistral`) or a full `<provider>/<model>` spec. By default, requests go directly to the provider's API; to route through a third-party service instead, tack on `@[YOUR HOST]` to the end.
+
+Supported providers currently include `anthropic`, `openai`, `google`, `deepseek`, `qwen`, or `ollama`. Supported hosts currently include `openrouter`. Please file an issue if your desired provider or host is not in this list yet.
+
+Examples:
+```sh
+npm start -- --agent gpt                            # resolves to openai/gpt-5
+npm start -- --agent openai/gpt-5-mini              # resolves to openai/gpt-5-mini
+npm start -- --agent openai/gpt-5-mini@openrouter   # resolves to openai/gpt-5-mini running on OpenRouter
+```
 
 If you'd like to configure the summarizer agent differently, you can pass in a `--summarizer` flag that accepts the same values as `--agent`.
 
 In order to run any cloud-based model, you'll need a corresponding API key environment variable, eg  `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GOOGLE_GENERATIVE_AI_API_KEY` depending on your model provider.
+
+### Agent verbosity
+Verbosity can range from warnings/errors only (default) all the way to trace (`-vvv`).
+* `-v` or `--verbose` will print available actions and chosen actions
+* `-vv` will also include full agent responses, including reasoning
+* `-vvv` will also include full user prompts, including unavailable actions and game state

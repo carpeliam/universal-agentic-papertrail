@@ -89,7 +89,6 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
 }
 
 class Player extends Communicator<typeof agentActionSchema> {
-  static actionInstructions = `Choose one action from the set of available actions.`
   static firstTickSuffix = `
 
 In-game time is a real cost. A "wait" action that sets up something meaningful beats busy action \
@@ -124,7 +123,7 @@ yourself, but trust the current state over the notes; things may have moved on s
     const { actions, state } = prompt
     this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
     const { output, reasoning } = await this.submit([
-      { type: 'text', text: 'Choose one action from the set of available actions.' },
+      { type: 'text', text: 'Choose one action from the set of available actions. Respond in JSON.' },
       { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
       { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
       { type: 'text', text: `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}` },
@@ -146,7 +145,8 @@ picture of: what has been discovered, what has been tried, what to watch out for
 current strategic situation is.
 Write in a clear, declarative voice. The next agent needs stable ground truth, not a reconstruction of how it felt to be in \
 the moment. You are their memory; be faithful.
-Be selective. Omit anything that is no longer relevant. The next agent will act on these notes — clarity and signal matter more than completeness.`
+Be selective. Omit anything that is no longer relevant. The next agent will act on these notes — clarity \
+and signal matter more than completeness. Respond in JSON.`
   schema = strategicNotesSchema
   constructor(agentSpec: LLMAgentSpec, verbosity = 0) {
     super(agentSpec, Summarizer.summarizePrompt, verbosity)

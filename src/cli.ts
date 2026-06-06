@@ -1,7 +1,7 @@
 import { Command, InvalidArgumentError } from 'commander'
 import type { LLMAgentSpec, Provider } from './types';
 
-const PROVIDERS: Provider[] = ['anthropic', 'openai', 'google', 'deepseek', 'ollama']
+const PROVIDERS: Provider[] = ['anthropic', 'openai', 'google', 'deepseek', 'qwen', 'ollama']
 const ALIASES: Record<string, { provider: Provider; model: string }> = {
   haiku:   { provider: 'anthropic', model: 'claude-haiku-4-5' },
   sonnet:  { provider: 'anthropic', model: 'claude-sonnet-4-6' },

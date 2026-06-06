@@ -138,7 +138,7 @@ export type TickInteraction = {
   response: AgentResponse
 }
 
-export type Provider = 'anthropic' | 'openai' | 'google' | 'deepseek' | 'ollama'
+export type Provider = 'anthropic' | 'openai' | 'google' | 'deepseek' | 'qwen' | 'ollama'
 export type LLMAgentSpec = { provider: Provider; model: string }
 export type LLMAgentOptions = {
   agent: LLMAgentSpec

@@ -57,13 +57,14 @@ function prompt(): AgentPrompt {
   return { state, actions }
 }
 
-function mockGenerateTextOutput(output: object, reasoning = 'this seems like a good idea') {
+function mockGenerateTextOutput(output: object, reasoningText = 'this seems like a good idea') {
   return {
     output,
+    reasoningText,
     response: {
       messages: [{
         role: 'assistant', content: [
-          { type: 'reasoning', text: reasoning },
+          { type: 'reasoning', text: reasoningText },
           { type: 'text', text: JSON.stringify(output) },
         ],
       }],

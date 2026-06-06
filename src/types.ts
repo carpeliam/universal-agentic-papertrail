@@ -101,7 +101,7 @@ export const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('addMemory').describe('costs 1 trust; see compute.trust for available balance') }),
   z.object({ type: z.literal('raisePrice').describe('raise price by $0.01') }),
   z.object({ type: z.literal('lowerPrice').describe('lower price by $0.01') }),
-  z.object({ type: z.literal('completeProject'), projectId: projectIdSchema, title: z.string(), description: z.string(), cost: z.union([costSchema, z.array(costSchema)]), }),
+  z.object({ type: z.literal('completeProject'), projectId: projectIdSchema, title: z.string().nullable(), description: z.string().nullable(), cost: z.union([costSchema, z.array(costSchema)]).nullable(), }),
   z.object({ type: z.literal('wait').describe('advance game time without taking any action. Each turn is 1 second of simulated time.'), turns: z.number().min(1).max(30) }),
 ])
 export type AgentAction = z.infer<typeof agentActionSchema>

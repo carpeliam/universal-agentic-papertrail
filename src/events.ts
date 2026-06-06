@@ -1,9 +1,15 @@
 import { EventEmitter } from 'node:events'
 import type { RunResults } from './generation'
-import type { AgentOptions } from './types'
+import type { AgentAction, AgentOptions } from './types'
 
+interface TurnExecutedEvent {
+  action: AgentAction
+  reasoning?: string
+  cost?: number
+}
 type GameEvents = {
   agentStarted: AgentOptions
+  turnExecuted: TurnExecutedEvent
   generationCompleted: RunResults
 }
 type EventKey = keyof GameEvents

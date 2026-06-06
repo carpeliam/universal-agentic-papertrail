@@ -1,11 +1,12 @@
-import { APICallError, generateText, NoObjectGeneratedError, Output, SystemModelMessage, type FlexibleSchema, type LanguageModel, type ModelMessage, type UserContent } from "ai"
+import { APICallError, generateText, GenerateTextResult, NoObjectGeneratedError, Output, SystemModelMessage, type FlexibleSchema, type LanguageModel, type ModelMessage, type UserContent } from "ai"
 import { z } from "zod"
 import { anthropic, type AnthropicLanguageModelOptions } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
-import { openrouter } from '@openrouter/ai-sdk-provider'
+import { openrouter, type OpenRouterUsageAccounting } from '@openrouter/ai-sdk-provider'
 import { agentActionSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction } from "@/types"
+import { events } from "@/events"
 import { AgentTeam } from "."
 
 const ollama = createOllama()
@@ -30,18 +31,22 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
     const maxAttempts = 3
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        const { output, response: { messages: responseMessages } } = await generateText({
+        const result = await generateText({
           model: this.model,
           system: this.systemMessage,
           output: Output.object({ schema: this.schema }),
           messages,
         })
+        const { output, reasoningText, response: { messages: responseMessages } } = result
         this.messages.push(...responseMessages)
+
+        const completionMetadata = extractCompletionMetadata(result)
+        this.log(LOG_DEBUG, 'response', completionMetadata, ...responseMessages)
         this.log(LOG_INFO, JSON.stringify(output))
-        this.log(LOG_DEBUG, 'response', ...responseMessages)
-        const assistantContent = responseMessages.find(m => m.role === 'assistant')?.content
-        const reasoning = (Array.isArray(assistantContent)) ? assistantContent.find(c => c.type === 'reasoning')?.text : undefined
-        return { output, reasoning }
+        if (result.warnings?.length) this.log(LOG_INFO, result.warnings)
+
+        events.emit('turnExecuted', { action: output, reasoning: reasoningText, ...completionMetadata })
+        return { output, reasoning: reasoningText }
       } catch (err) {
         if (i === maxAttempts - 1) {
           throw err
@@ -168,6 +173,18 @@ function delay(ms: number): Promise<void> {
 
 function is504(err: APICallError): boolean {
   return typeof err.data === 'object' && err.data !== null && 'code' in err.data && (err.data as { code: unknown }).code === 504
+}
+
+interface CompletionMetadata {
+  cost?: number
+}
+function extractCompletionMetadata({ providerMetadata }: GenerateTextResult<any, any>): CompletionMetadata {
+  let cost: number | undefined
+  if (providerMetadata?.openrouter) {
+    const usage = providerMetadata.openrouter.usage as OpenRouterUsageAccounting
+    cost = usage.cost
+  }
+  return { cost }
 }
 
 const universalProviderOptions = {

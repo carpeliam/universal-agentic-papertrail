@@ -14,6 +14,7 @@ export interface Metrics {
   clipCount: number
   tickCount: number
   status: 'active' | 'complete' | 'stalled'
+  cost?: number
 }
 
 class MetricsAccumulator {
@@ -32,6 +33,7 @@ class MetricsAccumulator {
       clipCount: data.clipCount ?? this.currentState.clipCount,
       tickCount: (this.currentState.tickCount ?? 0) + (data?.tickCount ?? 0),
       status: data.status ?? this.currentState.status,
+      cost: (data.cost) ? data.cost + (this.currentState.cost ?? 0) : this.currentState.cost,
     }
     this.persist()
   }
@@ -65,6 +67,8 @@ export async function initMetrics() {
       status: status(state),
     })
   })
+
+  events.on('turnExecuted', ({ cost }) => { accumulator!.accumulate({ cost }) })
 }
 
 export function status(state: GameState): Metrics['status'] {

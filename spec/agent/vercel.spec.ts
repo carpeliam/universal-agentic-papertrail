@@ -104,30 +104,30 @@ describe('player', () => {
     await player.play(prompt())
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      system: expect.stringContaining("You're starting fresh with no prior context"),
+      system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
       messages: [
-        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
     let generateTextPayload = mockGenerateText.mock.calls[0][0]
-    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.available))
-    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.unavailable))
-    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(state))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
 
     await player.play(prompt())
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      system: expect.stringContaining("You're starting fresh with no prior context"),
+      system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
       messages: [
-        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-        { role: 'assistant', content: expect.arrayContaining([{ type: 'text', text: JSON.stringify(mockAgentAction) }]) },
-        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
     generateTextPayload = mockGenerateText.mock.calls[1][0]
-    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.available))
-    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.unavailable))
-    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(state))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
   })
 
   it('can carry a conversation on the nth generation', async () => {
@@ -136,31 +136,31 @@ describe('player', () => {
     await player.play(prompt())
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      system: expect.stringContaining('picking up where someone else left off'),
+      system: expect.toMatchSystemModelMessage(expect.stringContaining('picking up where someone else left off')),
       messages: [
-        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
     let generateTextPayload = mockGenerateText.mock.calls[0][0]
-    expect(generateTextPayload.system).toContain(JSON.stringify([mockStrategicNotes]))
-    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.available))
-    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(actions.unavailable))
-    expect(generateTextPayload.messages![0].content).toContain(JSON.stringify(state))
+    expect(generateTextPayload.system).toMatchSystemModelMessage(expect.stringContaining(JSON.stringify([mockStrategicNotes])))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
 
     await player.play(prompt())
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      system: expect.stringContaining('picking up where someone else left off'),
+      system: expect.toMatchSystemModelMessage(expect.stringContaining('picking up where someone else left off')),
       messages: [
-        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-        { role: 'assistant', content: expect.arrayContaining([{ type: 'text', text: JSON.stringify(mockAgentAction) }]) },
-        { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
     generateTextPayload = mockGenerateText.mock.calls[1][0]
-    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.available))
-    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(actions.unavailable))
-    expect(generateTextPayload.messages![2].content).toContain(JSON.stringify(state))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
   })
 
   describe('when a schema validation is encountered', () => {
@@ -179,28 +179,28 @@ describe('player', () => {
       expect(response).toEqual(expect.objectContaining({ action: mockAgentAction }))
       expect(mockGenerateText).toHaveBeenCalledTimes(2)
       expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-        system: expect.stringContaining("You're starting fresh with no prior context"),
+        system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
         messages: [
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+          expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
         ],
       }))
       expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-        system: expect.stringContaining("You're starting fresh with no prior context"),
+        system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
         messages: [
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-          { role: 'assistant', content: '{"action":{"type":"wait"},"reasoning":"We have a healthy supply of wire"}' },
-          { role: 'user', content: expect.stringContaining('Your previous response did not match the required schema.') },
+          expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+          expect.toMatchModelMessage('assistant', '{"action":{"type":"wait"},"reasoning":"We have a healthy supply of wire"}'),
+          expect.toMatchModelMessage('user', expect.stringContaining('Your previous response did not match the required schema.')),
         ],
       }))
 
       await player.play(prompt())
 
       expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-        system: expect.stringContaining("You're starting fresh with no prior context"),
+        system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
         messages: [
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
-          { role: 'assistant', content: expect.arrayContaining([{ type: 'text', text: JSON.stringify(mockAgentAction) }]) },
-          { role: 'user', content: expect.stringContaining('Choose one action from the set of available actions') },
+          expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+          expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+          expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
         ],
       }))
     })
@@ -252,8 +252,8 @@ describe('summarize', () => {
     await summarize([mockStrategicNotes], mockTranscript)
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      system: expect.stringContaining('You are maintaining a rolling set of strategic notes'),
-      messages: [{ role: 'user', content: expect.stringContaining(JSON.stringify([mockStrategicNotes])) }],
+      system: expect.toMatchSystemModelMessage(expect.stringContaining('You are maintaining a rolling set of strategic notes')),
+      messages: [expect.toMatchModelMessage('user', expect.stringContaining(JSON.stringify([mockStrategicNotes])))],
     }))
   })
 

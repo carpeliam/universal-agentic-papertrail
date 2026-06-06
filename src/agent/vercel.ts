@@ -1,6 +1,6 @@
-import { APICallError, generateText, ModelMessage, NoObjectGeneratedError, Output, type FlexibleSchema, type LanguageModel } from "ai"
+import { APICallError, generateText, NoObjectGeneratedError, Output, SystemModelMessage, type FlexibleSchema, type LanguageModel, type ModelMessage, type UserContent } from "ai"
 import { z } from "zod"
-import { anthropic } from "@ai-sdk/anthropic"
+import { anthropic, type AnthropicLanguageModelOptions } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
@@ -14,11 +14,11 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
   protected messages: ModelMessage[] = []
   abstract schema: TSchema
   protected model: LanguageModel
-  constructor(agentSpec: LLMAgentSpec, protected systemMessage: string, protected shouldLog: boolean) {
+  constructor(agentSpec: LLMAgentSpec, protected systemMessage: string | SystemModelMessage | SystemModelMessage[], protected shouldLog: boolean) {
     this.model = this.languageModelFor(agentSpec)
   }
 
-  protected async submit(content: string): Promise<{ output: z.infer<TSchema>, reasoning: string | undefined }> {
+  protected async submit(content: UserContent): Promise<{ output: z.infer<TSchema>, reasoning: string | undefined }> {
     this.messages.push({ role: 'user', content })
 
     let messages = [...this.messages]
@@ -32,7 +32,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
           messages,
         })
         this.messages.push(...responseMessages)
-        this.log(JSON.stringify(output))
+        this.log(JSON.stringify(output), ...responseMessages)
         const assistantContent = responseMessages.find(m => m.role === 'assistant')?.content
         const reasoning = (Array.isArray(assistantContent)) ? assistantContent.find(c => c.type === 'reasoning')?.text : undefined
         return { output, reasoning }
@@ -106,8 +106,11 @@ yourself, but trust the current state over the notes; things may have moved on s
   schema = agentActionSchema
 
   constructor(agentSpec: LLMAgentSpec, priorNotes: StrategicNotes[], verbosity = 0) {
-    const systemMessage = (priorNotes.length)
-      ? `${Player.firstTickNthGenerationPrompt}\nPrevious notes: ${JSON.stringify(priorNotes)}`
+    const systemMessage: string | SystemModelMessage[] = (priorNotes.length)
+      ? [
+        { role: 'system', content: Player.firstTickNthGenerationPrompt, providerOptions: universalProviderOptions },
+        { role: 'system', content: `Previous notes: ${JSON.stringify(priorNotes)}` },
+      ]
       : Player.firstTickFirstGenerationPrompt
     super(agentSpec, systemMessage, verbosity > 1)
   }
@@ -116,11 +119,11 @@ yourself, but trust the current state over the notes; things may have moved on s
     const { actions, state } = prompt
     this.log('prompting with available actions:', JSON.stringify(actions.available))
     const { output, reasoning } = await this.submit([
-      Player.actionInstructions,
-      `Current environment: ${JSON.stringify(state)}`,
-      `Available actions: ${JSON.stringify(actions.available)}`,
-      `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}`,
-    ].join('\n'))
+      { type: 'text', text: 'Choose one action from the set of available actions.' },
+      { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
+      { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
+      { type: 'text', text: `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}` },
+    ])
     return { action: output, reasoning }
   }
 }
@@ -162,6 +165,10 @@ function is504(err: APICallError): boolean {
   return typeof err.data === 'object' && err.data !== null && 'code' in err.data && (err.data as { code: unknown }).code === 504
 }
 
+const universalProviderOptions = {
+  openrouter: { cacheControl: { type: 'ephemeral' } },
+  anthropic: { cacheControl: { type: 'ephemeral' } } satisfies AnthropicLanguageModelOptions,
+}
 
 export default function createAiAgent(options: LLMAgentOptions): AgentTeam {
   const createPlayer = (priorNotes: StrategicNotes[]) => new Player(options.agent, priorNotes, options.verbosity)

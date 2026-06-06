@@ -178,7 +178,7 @@ describe('toAgentState', () => {
     expect(agentState.space).toHaveProperty('activeBattle')
     agentState = toAgentState(applySpaceState({ projects: { project121: true } }))
     expect(agentState.space).toHaveProperty('honor')
-    expect(agentState.space).toHaveProperty('increaseMaxTrustCost')
+    expect(agentState.space).toHaveProperty('maxTrustCost')
   })
 
   it('only exposes projects as they become available', () => {

@@ -48,7 +48,7 @@ function computeStateFor(state: GameState): Pick<AgentState, 'compute'> {
 function investmentStateFor(state: GameState): Pick<AgentState, 'investment'> {
   const { unlocked, bankroll, portTotal, secTotal, riskMode, investLevel, stocks, investUpgradeCost } = state.investment
   return unlocked
-    ? { investment: { bankroll, portTotal, secTotal, riskMode, investLevel, stocks, investUpgradeCost: { amount: investUpgradeCost, unit: 'yomi' } } }
+    ? { investment: { bankroll, portTotal, secTotal, riskMode, investLevel, stocks, investUpgradeCost } }
     : {}
 }
 
@@ -103,12 +103,11 @@ function spaceStateFor(state: GameState): Pick<AgentState, 'space'> {
         probeDistributionSpeed: probeSpeed, probeDistributionExploration: probeNav,
         probeDistributionSelfReplication: probeRep, probeDistributionHazardRemediation: probeHaz,
         probeDistributionFactory: probeFac, probeDistributionHarvester: probeHarv, probeDistributionWireDrone: probeWire,
-        probeTrust, probeUsedTrust, maxTrust,
-        probeTrustCost: { amount: probeTrustCost, unit: 'yomi' },
+        probeTrust, probeTrustCost, probeUsedTrust, maxTrust,
         probesLostToHazards: probesLostHaz, probesLostToValueDrift: probesLostDrift,
         ...(probesLostCombat > 0 && { probesLostToCombat: probesLostCombat }),
         ...(state.projects.project131 && { probeDistributionCombat: probeCombat }),
-        ...(state.projects.project121 && { honor, increaseMaxTrustCost: { amount: maxTrustCost, unit: 'honor' } }),
+        ...(state.projects.project121 && { honor, maxTrustCost }),
         ...(battleFlag && { drifterCount, activeBattle: {
           name: activeBattle!.name,
           clipProbes: activeBattle!.leftShips,

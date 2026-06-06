@@ -499,7 +499,7 @@ export default function createFakeAgent(): AgentTeam {
       if (
         investUpgrade && state.strategy &&
         state.investment.investLevel < 14 &&
-        state.strategy.yomi >= state.investment.investUpgradeCost.amount
+        state.strategy.yomi >= state.investment.investUpgradeCost
       ) {
         return { action: investUpgrade, reasoning: 'Upgrading investment engine.' }
       }

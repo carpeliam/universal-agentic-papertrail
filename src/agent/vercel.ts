@@ -10,16 +10,21 @@ import { AgentTeam } from "."
 
 const ollama = createOllama()
 
+const LOG_INFO = 1
+const LOG_DEBUG = 2
+const LOG_TRACE = 3
+
 abstract class Communicator<TSchema extends FlexibleSchema> {
   protected messages: ModelMessage[] = []
   abstract schema: TSchema
   protected model: LanguageModel
-  constructor(agentSpec: LLMAgentSpec, protected systemMessage: string | SystemModelMessage | SystemModelMessage[], protected shouldLog: boolean) {
+  constructor(agentSpec: LLMAgentSpec, protected systemMessage: string | SystemModelMessage | SystemModelMessage[], protected verbosity: number) {
     this.model = this.languageModelFor(agentSpec)
   }
 
   protected async submit(content: UserContent): Promise<{ output: z.infer<TSchema>, reasoning: string | undefined }> {
     this.messages.push({ role: 'user', content })
+    this.log(LOG_TRACE, 'full prompt', content)
 
     let messages = [...this.messages]
     const maxAttempts = 3
@@ -32,12 +37,12 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
           messages,
         })
         this.messages.push(...responseMessages)
-        this.log(JSON.stringify(output), ...responseMessages)
+        this.log(LOG_INFO, JSON.stringify(output))
+        this.log(LOG_DEBUG, 'response', ...responseMessages)
         const assistantContent = responseMessages.find(m => m.role === 'assistant')?.content
         const reasoning = (Array.isArray(assistantContent)) ? assistantContent.find(c => c.type === 'reasoning')?.text : undefined
         return { output, reasoning }
       } catch (err) {
-        console.warn(err)
         if (i === maxAttempts - 1) {
           throw err
         }
@@ -51,7 +56,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
             { role: 'assistant', content: err.text ?? '' },
             { role: 'user', content: `Your previous response did not match the required schema. Error: ${err.cause.message}\nPlease try again.` }
           ]
-          this.log('schema validation failed, retrying:', err.cause)
+          this.log(LOG_INFO, 'schema validation failed, retrying:', err.cause)
           continue
         }
         throw err
@@ -78,8 +83,8 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
     }
   }
 
-  log(...messages: any[]) {
-    if (this.shouldLog) console.log(new Date(), ...messages)
+  log(level: number, ...messages: any[]) {
+    if (this.verbosity >= level) console.log(new Date(), ...messages)
   }
 }
 
@@ -112,12 +117,12 @@ yourself, but trust the current state over the notes; things may have moved on s
         { role: 'system', content: `Previous notes: ${JSON.stringify(priorNotes)}` },
       ]
       : Player.firstTickFirstGenerationPrompt
-    super(agentSpec, systemMessage, verbosity > 1)
+    super(agentSpec, systemMessage, verbosity)
   }
 
   async play(prompt: AgentPrompt): Promise<AgentResponse> {
     const { actions, state } = prompt
-    this.log('prompting with available actions:', JSON.stringify(actions.available))
+    this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
     const { output, reasoning } = await this.submit([
       { type: 'text', text: 'Choose one action from the set of available actions.' },
       { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
@@ -144,12 +149,12 @@ the moment. You are their memory; be faithful.
 Be selective. Omit anything that is no longer relevant. The next agent will act on these notes — clarity and signal matter more than completeness.`
   schema = strategicNotesSchema
   constructor(agentSpec: LLMAgentSpec, verbosity = 0) {
-    super(agentSpec, Summarizer.summarizePrompt, verbosity > 0)
+    super(agentSpec, Summarizer.summarizePrompt, verbosity)
   }
 
   async summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
     this.startFreshEveryTime()
-    this.log('summarizing')
+    this.log(LOG_INFO, 'summarizing')
     const { output } = await this.submit(`Prior notes:\n${JSON.stringify(priorNotes)}\n\nTranscript:\n${JSON.stringify(transcript)}`)
     return output
   }

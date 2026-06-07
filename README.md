@@ -67,8 +67,13 @@ If you'd like to configure the summarizer agent differently, you can pass in a `
 
 In order to run any cloud-based model, you'll need a corresponding API key environment variable, eg  `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GOOGLE_GENERATIVE_AI_API_KEY` depending on your model provider.
 
-### Agent verbosity
+### Capturing logs
 Verbosity can range from warnings/errors only (default) all the way to trace (`-vvv`).
 * `-v` or `--verbose` will print available actions and chosen actions
 * `-vv` will also include full agent responses, including reasoning
 * `-vvv` will also include full user prompts, including unavailable actions and game state
+
+To capture data for a run, `logs/capture.sh` will capture a run to a file in `logs/` with the date and time of the run, prepending it with current git state and appending the metrics for that run at the end:
+```sh
+./logs/capture.sh --agent haiku@openrouter -vv --reset
+```

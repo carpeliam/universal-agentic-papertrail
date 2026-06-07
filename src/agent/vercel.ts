@@ -5,7 +5,7 @@ import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
 import { openrouter, type OpenRouterUsageAccounting } from '@openrouter/ai-sdk-provider'
-import { agentActionSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction, AgentAction, PromptAction } from "@/types"
+import { agentActionSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction, PromptAction } from "@/types"
 import { events } from "@/events"
 import { AgentTeam } from "."
 
@@ -94,6 +94,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
 }
 
 class Player extends Communicator<typeof agentActionSchema> {
+  static actionInstructions = 'Choose one action from the set of available actions. Respond in JSON.'
   static firstTickSuffix = `
 
 In-game time is a real cost. Use the current environment to gauge your progress and how quickly \
@@ -126,18 +127,29 @@ yourself, but trust the current state over the notes; things may have moved on s
 
   async play(prompt: AgentPrompt): Promise<AgentResponse> {
     const { actions, state } = prompt
+    this.pruneOldMessageData()
     this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
     const { output, reasoning } = await this.submit([
-      { type: 'text', text: 'Choose one action from the set of available actions. Respond in JSON.' },
+      { type: 'text', text: Player.actionInstructions },
       { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
       { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
       { type: 'text', text: `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}` },
     ], this.schemaFor(actions.available))
     return { action: output, reasoning }
   }
-  schemaFor(actions: PromptAction[]): FlexibleSchema {
+  private schemaFor(actions: PromptAction[]): FlexibleSchema {
     const availableTypes = actions.map(a => a.type)
     return z.union(this.schema.options.filter(o => availableTypes.includes(o.shape.type.value)))
+  }
+  private pruneOldMessageData(keepRecent = 4) {
+    const messages = this.messages.slice(-20)
+    const userMessageCount = messages.filter(m => m.role === 'user').length
+    let userIndex = 0
+    this.messages = messages.map(message => {
+      if (message.role !== 'user' || !Array.isArray(message.content)) return message
+      if (userMessageCount - userIndex++ <= keepRecent) return message
+      return { ...message, content: message.content.filter(m => m.type === 'text' && m.text === Player.actionInstructions) }
+    })
   }
 }
 

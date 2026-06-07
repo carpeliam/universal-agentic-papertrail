@@ -176,6 +176,30 @@ describe('player', () => {
     expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
   })
 
+  it('removes state/actions beyond the most recent 4 responses', async () => {
+    const player = createPlayer([])
+
+    for (let i = 0; i < 6; i++) {
+      await player.play(prompt())
+    }
+
+    expect(mockGenerateText).toHaveBeenLastCalledWith(expect.objectContaining({
+      messages: [
+        expect.not.toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state))),
+        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
+      ],
+    }))
+  })
+
   describe('when a schema validation is encountered', () => {
     it('submits again with an explanation of the error', async () => {
       const player = createPlayer([])

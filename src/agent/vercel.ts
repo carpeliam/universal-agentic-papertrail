@@ -5,7 +5,7 @@ import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
 import { openrouter, type OpenRouterUsageAccounting } from '@openrouter/ai-sdk-provider'
-import { agentActionSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction } from "@/types"
+import { agentActionSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction, AgentAction, PromptAction } from "@/types"
 import { events } from "@/events"
 import { AgentTeam } from "."
 
@@ -23,7 +23,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
     this.model = this.languageModelFor(agentSpec)
   }
 
-  protected async submit(content: UserContent): Promise<{ output: z.infer<TSchema>, reasoning: string | undefined }> {
+  protected async submit(content: UserContent, schema: FlexibleSchema = this.schema): Promise<{ output: z.infer<TSchema>, reasoning: string | undefined }> {
     this.messages.push({ role: 'user', content })
     this.log(LOG_TRACE, 'full prompt', content)
 
@@ -34,7 +34,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
         const result = await generateText({
           model: this.model,
           system: this.systemMessage,
-          output: Output.object({ schema: this.schema }),
+          output: Output.object({ schema }),
           messages,
         })
         const { output, reasoningText, response: { messages: responseMessages } } = result
@@ -132,8 +132,12 @@ yourself, but trust the current state over the notes; things may have moved on s
       { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
       { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
       { type: 'text', text: `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}` },
-    ])
+    ], this.schemaFor(actions.available))
     return { action: output, reasoning }
+  }
+  schemaFor(actions: PromptAction[]): FlexibleSchema {
+    const availableTypes = actions.map(a => a.type)
+    return z.union(this.schema.options.filter(o => availableTypes.includes(o.shape.type.value)))
   }
 }
 

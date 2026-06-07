@@ -34,7 +34,8 @@ vi.mock('ai', () => ({
 
 vi.hoisted(() => { vi.stubEnv('OPENROUTER_API_KEY', undefined as any) })
 
-import { APICallError, generateText, NoObjectGeneratedError, type GenerateTextResult } from 'ai'
+import { APICallError, generateText, NoObjectGeneratedError, Output, type GenerateTextResult } from 'ai'
+import { z } from 'zod'
 import { createInitialGameState } from 'paperclips-remake'
 import createAiAgent from '@/agent/vercel'
 import { getActions, toAgentState } from '@/agent-adapter'
@@ -97,6 +98,17 @@ describe('player', () => {
     const response = await player.play(prompt())
 
     expect(response).toEqual({ action: mockAgentAction, reasoning: 'Just getting started!' })
+  })
+
+  it('sends a schema matching only available actions', async () => {
+    const player = createPlayer([])
+
+    await player.play(prompt())
+
+    const schema = vi.mocked(Output.object).mock.calls[0][0].schema as z.ZodObject
+    expect(schema.safeParse({ type: 'makeClip' }).success).toBe(true)
+    expect(schema.safeParse({ type: 'wait', turns: 1 }).success).toBe(true)
+    expect(schema.safeParse({ type: 'buyAutoClipper' }).success).toBe(false)
   })
 
   it('can start a conversation on the first generation', async () => {

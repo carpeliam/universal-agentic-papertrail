@@ -61,6 +61,7 @@ function prompt(): AgentPrompt {
 function mockGenerateTextOutput(output: object, reasoningText = 'this seems like a good idea') {
   return {
     output,
+    usage: { inputTokens: 0 },
     reasoningText,
     response: {
       messages: [{
@@ -198,6 +199,20 @@ describe('player', () => {
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
+  })
+
+  it('can continue as long as the input token count is below 40,000', async () => {
+    const baseGenerateTextResult = mockGenerateTextOutput(mockAgentAction)
+    const player = createPlayer([])
+
+    mockGenerateText
+      .mockResolvedValueOnce({ ...baseGenerateTextResult, usage: { ...baseGenerateTextResult.usage, inputTokens: 39_999 } })
+      .mockResolvedValue({ ...baseGenerateTextResult, usage: { ...baseGenerateTextResult.usage, inputTokens: 1 } })
+
+    await player.play(prompt())
+    expect(player.canContinue()).toBeTruthy()
+    await player.play(prompt())
+    expect(player.canContinue()).toBeFalsy()
   })
 
   describe('when a schema validation is encountered', () => {

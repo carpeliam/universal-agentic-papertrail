@@ -7,30 +7,23 @@ describe('run', () => {
   it('dispatches each action', async () => {
     const initialState = createInitialGameState()
     const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
-    const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
+    const newGameState = reduceGameState(initialState, { type: 'makeClip' })
+    const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(newGameState))
 
-    await run(createPlayer(fakePlay), fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
+    await run(createPlayer(fakePlay), fakeDispatch, initialState, [])
 
-    expect(fakeDispatch).toHaveBeenNthCalledWith(1, initialState, { type: 'makeClip' })
-    const additionalExpectedActions = [
-      expect.objectContaining({ type: 'tick' }),
-      { type: 'makeClip' },
-      expect.objectContaining({ type: 'tick' }),
-      { type: 'makeClip' },
-      expect.objectContaining({ type: 'tick' }),
-    ]
-    additionalExpectedActions.forEach((action, i) => {
-      expect(fakeDispatch).toHaveBeenNthCalledWith(i + 2, expect.anything(), action)
-    })
+    expect(fakeDispatch).toHaveBeenCalledWith(initialState, { type: 'makeClip' })
+    expect(fakeDispatch).toHaveBeenCalledWith(newGameState, expect.objectContaining({ type: 'tick' }))
   })
   it('returns a transcript with one record per tick', async () => {
     const initialState = createInitialGameState()
     const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakeCanContinue = vi.fn<Player['canContinue']>().mockReturnValueOnce(true).mockReturnValueOnce(true).mockReturnValue(false)
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    const { transcript } = await run(createPlayer(fakePlay), fakeDispatch, initialState, [], { ticksPerGeneration: 3 })
+    const { transcript } = await run(createPlayer(fakePlay, fakeCanContinue), fakeDispatch, initialState, [])
 
-    expect(transcript).toHaveLength(3)
+    expect(transcript).toHaveLength(2)
   })
   it('returns early if the game completes part way through', async () => {
     const initialState = createInitialGameState()
@@ -41,7 +34,7 @@ describe('run', () => {
     const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(createPlayer(fakePlay), fakeDispatch, winState, [], { ticksPerGeneration: 2 })
+    await run(createPlayer(fakePlay), fakeDispatch, winState, [])
 
     expect(fakePlay).not.toHaveBeenCalled()
     expect(fakeDispatch).not.toHaveBeenCalled()
@@ -52,7 +45,7 @@ describe('run', () => {
     const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    await run(createPlayer(fakePlay), fakeDispatch, stalledState, [], { ticksPerGeneration: 2 })
+    await run(createPlayer(fakePlay), fakeDispatch, stalledState, [])
 
     expect(fakePlay).not.toHaveBeenCalled()
     expect(fakeDispatch).not.toHaveBeenCalled()
@@ -66,7 +59,7 @@ describe('createRunner', () => {
     const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
-    const runGeneration = createRunner(createPlayer(fakePlay), fakeNotesAgent, fakeDispatch, { ticksPerGeneration: 2 })
+    const runGeneration = createRunner(createPlayer(fakePlay), fakeNotesAgent, fakeDispatch)
     const result = await runGeneration(initialState, [])
 
     expect(result.notes).toEqual({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
@@ -84,6 +77,6 @@ describe('createRunner', () => {
   })
 })
 
-function createPlayer(play: Player['play']) {
-  return () => ({ play })
+function createPlayer(play: Player['play'], canContinue = vi.fn().mockReturnValueOnce(true).mockReturnValue(false)) {
+  return () => ({ play, canContinue })
 }

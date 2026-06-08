@@ -4,6 +4,7 @@ import type { AgentOptions, AgentPrompt, AgentResponse, StrategicNotes, TickInte
 
 export interface Player {
   play(prompt: AgentPrompt): Promise<AgentResponse>
+  canContinue(): boolean
 }
 
 export interface AgentTeam {

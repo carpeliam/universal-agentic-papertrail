@@ -15,6 +15,8 @@ const LOG_INFO = 1
 const LOG_DEBUG = 2
 const LOG_TRACE = 3
 
+const MAX_INPUT_TOKENS_PER_GENERATION = 40_000
+
 abstract class Communicator<TSchema extends FlexibleSchema> {
   protected messages: ModelMessage[] = []
   abstract schema: TSchema
@@ -23,7 +25,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
     this.model = this.languageModelFor(agentSpec)
   }
 
-  protected async submit(content: UserContent, schema: FlexibleSchema = this.schema): Promise<{ output: z.infer<TSchema>, reasoning: string | undefined }> {
+  protected async submit(content: UserContent, schema: FlexibleSchema = this.schema): ReturnType<typeof generateText> {
     this.messages.push({ role: 'user', content })
     this.log(LOG_TRACE, 'full prompt', content)
 
@@ -37,16 +39,17 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
           output: Output.object({ schema }),
           messages,
         })
-        const { output, reasoningText, response: { messages: responseMessages } } = result
+        const { output, usage, reasoningText, response: { messages: responseMessages } } = result
         this.messages.push(...responseMessages)
 
         const completionMetadata = extractCompletionMetadata(result)
         this.log(LOG_DEBUG, 'response', completionMetadata, ...responseMessages)
+        this.log(LOG_DEBUG, { usage })
         this.log(LOG_INFO, JSON.stringify(output))
         if (result.warnings?.length) this.log(LOG_INFO, result.warnings)
 
         events.emit('turnExecuted', { action: output, reasoning: reasoningText, ...completionMetadata })
-        return { output, reasoning: reasoningText }
+        return result
       } catch (err) {
         if (i === maxAttempts - 1) {
           throw err
@@ -114,6 +117,7 @@ You're on a bit of an adventure, picking up where someone else left off. Not to 
 notes — treat them like cliff notes for everything that happened before you arrived. Read them to orient \
 yourself, but trust the current state over the notes; things may have moved on since they were written. ${Player.firstTickSuffix}`
   schema = agentActionSchema
+  private inputTokenCount = 0
 
   constructor(agentSpec: LLMAgentSpec, priorNotes: StrategicNotes[], verbosity = 0) {
     const systemMessage: string | SystemModelMessage[] = (priorNotes.length)
@@ -129,14 +133,16 @@ yourself, but trust the current state over the notes; things may have moved on s
     const { actions, state } = prompt
     this.pruneOldMessageData()
     this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
-    const { output, reasoning } = await this.submit([
+    const { output, usage, reasoningText } = await this.submit([
       { type: 'text', text: Player.actionInstructions },
       { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
       { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
       { type: 'text', text: `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}` },
     ], this.schemaFor(actions.available))
-    return { action: output, reasoning }
+    this.inputTokenCount += usage.inputTokens ?? 0
+    return { action: output, reasoning: reasoningText }
   }
+  canContinue() { return this.inputTokenCount < MAX_INPUT_TOKENS_PER_GENERATION }
   private schemaFor(actions: PromptAction[]): FlexibleSchema {
     const availableTypes = actions.map(a => a.type)
     return z.union(this.schema.options.filter(o => availableTypes.includes(o.shape.type.value)))

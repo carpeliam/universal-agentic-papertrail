@@ -115,7 +115,7 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
 export default function createFakeAgent(): AgentTeam {
   fs.writeFileSync(SUMMARY_LOG_FILE, '', 'utf8')
 
-  let tickCount = 0
+  let tickCount: number
   let capturedState: AgentState
   let project37PriceTarget: number
   let project38PriceTarget: number
@@ -535,5 +535,10 @@ export default function createFakeAgent(): AgentTeam {
     return { action: { type: 'wait', turns: 1 }, reasoning: 'Nothing available — waiting.' }
   }
 
-  return { createPlayer: () => ({ play }), summarize }
+  return {
+    createPlayer: () => {
+      tickCount = 0
+      return { play, canContinue() { return tickCount < 60 } }
+    }, summarize
+  }
 }

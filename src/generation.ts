@@ -21,7 +21,7 @@ export async function run(createPlayer: AgentTeam['createPlayer'], dispatch: Dis
   const player = createPlayer(priorNotes)
 
   while (player.canContinue()) {
-    if (isGameOver(state)) {
+    if (isGameOver(currentState)) {
       break
     }
     const prompt = createAgentPrompt(currentState)

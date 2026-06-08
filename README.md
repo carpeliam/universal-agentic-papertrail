@@ -29,6 +29,7 @@ Options:
   --summarizer <spec>  Summarizer to use: follows the same format as --agent (defaults to same value as --agent if not specified)
   --wait               Wait for a WebSocket client connection before starting (default: false)
   --reset              Clear logs before starting (default: false)
+  --plan               Allows an agent to plan multiple actions per turn (default: false)
   -v, --verbose        Print the agent's thought process to the screen
   -h, --help           display help for command
 ```
@@ -64,6 +65,8 @@ npm start -- --agent openai/gpt-5-mini@openrouter   # resolves to openai/gpt-5-m
 ```
 
 If you'd like to configure the summarizer agent differently, you can pass in a `--summarizer` flag that accepts the same values as `--agent`.
+
+By default, an agent submits one action, receives a prompt including the resulting state, and submits another action. If you'd like an agent to submit a _plan_ of multiple actions instead of a single action at a time, you can supply a `--plan` flag.
 
 In order to run any cloud-based model, you'll need a corresponding API key environment variable, eg  `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GOOGLE_GENERATIVE_AI_API_KEY` depending on your model provider.
 

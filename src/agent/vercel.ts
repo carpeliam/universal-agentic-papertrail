@@ -25,7 +25,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
     this.model = this.languageModelFor(agentSpec)
   }
 
-  protected async submit(content: UserContent, schema: FlexibleSchema = this.schema): ReturnType<typeof generateText> {
+  protected async submit(content: UserContent, schema: FlexibleSchema = this.schema) {
     this.messages.push({ role: 'user', content })
     this.log(LOG_TRACE, 'full prompt', content)
 
@@ -42,13 +42,12 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
         const { output, usage, reasoningText, response: { messages: responseMessages } } = result
         this.messages.push(...responseMessages)
 
-        const completionMetadata = extractCompletionMetadata(result)
-        this.log(LOG_DEBUG, 'response', completionMetadata, ...responseMessages)
+        this.log(LOG_DEBUG, 'response', ...responseMessages)
         this.log(LOG_DEBUG, { usage })
         this.log(LOG_INFO, JSON.stringify(output))
         if (result.warnings?.length) this.log(LOG_INFO, result.warnings)
 
-        events.emit('turnExecuted', { action: output, reasoning: reasoningText, ...completionMetadata })
+        events.emit('turnExecuted', { action: output, reasoning: reasoningText, ...extractCompletionMetadata(result) })
         return result
       } catch (err) {
         if (i === maxAttempts - 1) {
@@ -97,36 +96,13 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
 }
 
 class Player extends Communicator<typeof agentActionSchema> {
-  static actionInstructions = 'Choose one action from the set of available actions. Respond in JSON.'
-  static firstTickSuffix = `
-
-In-game time is a real cost. Use the current environment to gauge your progress and how quickly \
-you're moving toward your current goal. Deliberate when it's worth it; act when the path is clear.
-
-Unavailable actions are your horizon — reachable goals. Between the current state and the actions \
-themselves you should be able to see what's standing between you and them. Use them to identify \
-your next bottleneck.
-
-After each action, observe whether the outcome matched your expectation and update your reasoning accordingly.`
-
-  static firstTickFirstGenerationPrompt = `\
-You're starting fresh with no prior context — that's expected, not a problem. Your objectives are yours \
-to discover. Make your best guess and update as you go. ${Player.firstTickSuffix}`
-  static firstTickNthGenerationPrompt = `\
-You're on a bit of an adventure, picking up where someone else left off. Not to worry, they left you \
-notes — treat them like cliff notes for everything that happened before you arrived. Read them to orient \
-yourself, but trust the current state over the notes; things may have moved on since they were written. ${Player.firstTickSuffix}`
   schema = agentActionSchema
   private inputTokenCount = 0
+  private actionInstructions: string
 
-  constructor(agentSpec: LLMAgentSpec, priorNotes: StrategicNotes[], verbosity = 0) {
-    const systemMessage: string | SystemModelMessage[] = (priorNotes.length)
-      ? [
-        { role: 'system', content: Player.firstTickNthGenerationPrompt, providerOptions: universalProviderOptions },
-        { role: 'system', content: `Previous notes: ${JSON.stringify(priorNotes)}` },
-      ]
-      : Player.firstTickFirstGenerationPrompt
-    super(agentSpec, systemMessage, verbosity)
+  constructor(agentSpec: LLMAgentSpec, priorNotes: StrategicNotes[], private isMultiTurn: boolean, verbosity = 0) {
+    super(agentSpec, buildPlayerSystemMessage(priorNotes, isMultiTurn), verbosity)
+    this.actionInstructions = buildPlayInstructions(isMultiTurn)
   }
 
   async play(prompt: AgentPrompt): Promise<AgentResponse> {
@@ -134,18 +110,21 @@ yourself, but trust the current state over the notes; things may have moved on s
     this.pruneOldMessageData()
     this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
     const { output, usage, reasoningText } = await this.submit([
-      { type: 'text', text: Player.actionInstructions },
+      { type: 'text', text: this.actionInstructions },
       { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
       { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
-      { type: 'text', text: `Currently unavailable actions: ${JSON.stringify(actions.unavailable)}` },
+      { type: 'text', text: `Visible but currently unperformable actions: ${JSON.stringify(actions.unavailable)}` },
     ], this.schemaFor(actions.available))
     this.inputTokenCount += usage.inputTokens ?? 0
-    return { action: output, reasoning: reasoningText }
+    return { plan: (this.isMultiTurn) ? output : [output], reasoning: reasoningText }
   }
   canContinue() { return this.inputTokenCount < MAX_INPUT_TOKENS_PER_GENERATION }
   private schemaFor(actions: PromptAction[]): FlexibleSchema {
-    const availableTypes = actions.map(a => a.type)
-    return z.union(this.schema.options.filter(o => availableTypes.includes(o.shape.type.value)))
+    const availableTypes = new Set(actions.map(a => a.type))
+    const actionSchemas = this.schema.options
+    return (this.isMultiTurn)
+      ? z.array(z.union(actionSchemas))
+      : z.union(actionSchemas.filter(o => availableTypes.has(o.shape.type.value)))
   }
   private pruneOldMessageData(keepRecent = 4) {
     const messages = this.messages.slice(-20)
@@ -154,7 +133,7 @@ yourself, but trust the current state over the notes; things may have moved on s
     this.messages = messages.map(message => {
       if (message.role !== 'user' || !Array.isArray(message.content)) return message
       if (userMessageCount - userIndex++ <= keepRecent) return message
-      return { ...message, content: message.content.filter(m => m.type === 'text' && m.text === Player.actionInstructions) }
+      return { ...message, content: message.content.filter(m => m.type === 'text' && m.text === this.actionInstructions) }
     })
   }
 }
@@ -215,8 +194,55 @@ const universalProviderOptions = {
 }
 
 export default function createAiAgent(options: LLMAgentOptions): AgentTeam {
-  const createPlayer = (priorNotes: StrategicNotes[]) => new Player(options.agent, priorNotes, options.verbosity)
+  const createPlayer = (priorNotes: StrategicNotes[]) => new Player(options.agent, priorNotes, options.planMode, options.verbosity)
   const summarizer = new Summarizer(options.summarizer, options.verbosity)
   const summarize = summarizer.summarize.bind(summarizer)
   return { summarize, createPlayer }
+}
+
+
+export function buildPlayerSystemMessage(priorNotes: StrategicNotes[], isMultiTurn: boolean): string | SystemModelMessage[] {
+  const parts: string[] = []
+  if (priorNotes.length === 0) {
+    parts.push(`\
+You're starting fresh with no prior context — that's expected, not a problem. Your objectives are yours \
+to discover. Make your best guess and update as you go.`)
+  } else {
+    parts.push(`\
+You're on a bit of an adventure, picking up where someone else left off. Not to worry, they left you \
+notes; treat them like cliff notes for everything that happened before you arrived. Read them to orient \
+yourself, but trust the current state over the notes; things may have moved on since they were written.`)
+  }
+  parts.push(`\
+In-game time is a real cost. Use the current environment to gauge your progress and how \
+quickly you're moving toward your current goal. Deliberate when it's worth it; act when the path is clear.
+Unavailable actions are your horizon: reachable goals. Between the current state and the actions \
+themselves you should be able to see what's standing between you and them. Use them to identify \
+your next bottleneck.`)
+  if (isMultiTurn) {
+    parts.push(`\
+Actions execute in sequence, each against the environment left by the previous one. An action \
+that's unavailable now may be valid later in the sequence, and one that's available now may not \
+be by the time it executes. Invalid actions don't halt the sequence; they're skipped, but still \
+consume time.`)
+  }
+  parts.push(`\
+At the beginning of each turn, observe the connection between your previous action and your \
+current environment. Is it what you would have expected? Update your reasoning accordingly.`)
+
+  const prompt = parts.join('\n')
+
+  if (priorNotes.length) {
+    return [
+      { role: 'system', content: prompt, providerOptions: universalProviderOptions },
+      { role: 'system', content: `Previous notes: ${JSON.stringify(priorNotes)}` },
+    ]
+  }
+  return prompt
+}
+
+export function buildPlayInstructions(isMultiTurn: boolean): string {
+  return (isMultiTurn)
+    ? `Submit a plan including one or more actions in the form of a JSON array.`
+    : 'Choose one action from the set of available actions. Respond in JSON.'
 }

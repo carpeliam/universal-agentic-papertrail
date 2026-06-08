@@ -1,6 +1,6 @@
 import { createInitialGameState, type GameState, type SpaceBattle } from "paperclips-remake"
 
-type DeepPartial<T> = {
+export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
 }
 export function applyIndustryState(overrides: DeepPartial<GameState> = {}): GameState {

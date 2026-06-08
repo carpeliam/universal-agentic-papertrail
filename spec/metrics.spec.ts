@@ -33,6 +33,7 @@ describe('metrics', () => {
       type: 'llm',
       agent: { provider: 'anthropic', model: 'sonnet' },
       summarizer: { provider: 'anthropic', model: 'sonnet' },
+      planMode: false,
       verbosity: 0,
     })
     vi.advanceTimersByTime(123)
@@ -91,6 +92,7 @@ describe('metrics', () => {
       type: 'llm',
       agent: { provider: 'anthropic', model: 'sonnet' },
       summarizer: { provider: 'anthropic', model: 'sonnet' },
+      planMode: false,
       verbosity: 0,
     })
     vi.advanceTimersByTime(123)
@@ -118,6 +120,6 @@ function generateTickInteraction(): TickInteraction {
       state: toAgentState(createInitialGameState()),
       actions: { available: [{ type: 'wait', turns: 1 }], unavailable: [] },
     },
-    response: { action: { type: 'wait', turns: 1 }, reasoning: '' },
+    response: { plan: [{ type: 'wait', turns: 1 }], reasoning: '' },
   }
 }

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { AgentAction, AgentPrompt, StrategicNotes, TickInteraction } from '@/types'
+import { APICallError, generateText, NoObjectGeneratedError, Output, type GenerateTextResult } from 'ai'
+import { z } from 'zod'
+import { createInitialGameState } from 'paperclips-remake'
+import createAiAgent from '@/agent/vercel'
+import { getActions, toAgentState } from '@/agent-adapter'
+import type { AgentAction, LLMAgentOptions, StrategicNotes, TickInteraction } from '@/types'
+import { DeepPartial } from '../helper'
 
 vi.mock('ai', () => ({
   generateText: vi.fn(),
@@ -34,28 +40,26 @@ vi.mock('ai', () => ({
 
 vi.hoisted(() => { vi.stubEnv('OPENROUTER_API_KEY', undefined as any) })
 
-import { APICallError, generateText, NoObjectGeneratedError, Output, type GenerateTextResult } from 'ai'
-import { z } from 'zod'
-import { createInitialGameState } from 'paperclips-remake'
-import createAiAgent from '@/agent/vercel'
-import { getActions, toAgentState } from '@/agent-adapter'
-
 const mockGenerateText = vi.mocked(generateText)
 
-const mockAgentAction: AgentAction = { type: 'makeClip' }
-
-const mockStrategicNotes: StrategicNotes = {
+const sampleAgentAction: AgentAction = { type: 'makeClip' }
+const sampleStrategicNotes: StrategicNotes = {
   importantUnlocks: [],
   surprisesAndUpdates: [],
   watchouts: [],
   strategicNarrative: 'Early game, exploring.',
 }
 
-const state = toAgentState(createInitialGameState())
-const actions = getActions(createInitialGameState())
+const agentState = toAgentState(createInitialGameState())
+const agentActions = getActions(createInitialGameState())
 
-function prompt(): AgentPrompt {
-  return { state, actions }
+function setupAiAgent(options: DeepPartial<LLMAgentOptions> = {}) {
+  return createAiAgent({
+    agent: { provider: 'anthropic', model: 'haiku', ...options.agent },
+    summarizer: { provider: 'anthropic', model: 'haiku', ...options.summarizer },
+    planMode: options.planMode ?? false,
+    verbosity: options.verbosity ?? 0,
+  })
 }
 
 function mockGenerateTextOutput(output: object, reasoningText = 'this seems like a good idea') {
@@ -76,46 +80,74 @@ function mockGenerateTextOutput(output: object, reasoningText = 'this seems like
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockGenerateText.mockResolvedValue(mockGenerateTextOutput(mockAgentAction, 'Just getting started!'))
+  mockGenerateText.mockResolvedValue(mockGenerateTextOutput(sampleAgentAction, 'Just getting started!'))
 })
 afterEach(() => { vi.unstubAllEnvs() })
 
 describe('player', () => {
-  const { createPlayer } = createAiAgent({ agent: { provider: 'anthropic', model: 'claude-monet-1-0' }, summarizer: { provider: 'anthropic', model: 'claude-debussy-1-0' }, verbosity: 0 })
-
   it('sets the model according to the argument', async () => {
+    const { createPlayer } = setupAiAgent({ agent: { model: 'claude-monet-1-0' } })
     const player = createPlayer([])
 
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       model: expect.objectContaining({ modelId: 'claude-monet-1-0' }),
     }))
   })
 
-  it('returns the response', async () => {
+  it('returns the response as an array', async () => {
+    const { createPlayer } = setupAiAgent()
     const player = createPlayer([])
 
-    const response = await player.play(prompt())
+    const response = await player.play({ state: agentState, actions: agentActions })
 
-    expect(response).toEqual({ action: mockAgentAction, reasoning: 'Just getting started!' })
+    expect(response).toEqual({ plan: [sampleAgentAction], reasoning: 'Just getting started!' })
   })
 
   it('sends a schema matching only available actions', async () => {
+    const { createPlayer } = setupAiAgent()
     const player = createPlayer([])
 
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
 
-    const schema = vi.mocked(Output.object).mock.calls[0][0].schema as z.ZodObject
+    const schema = vi.mocked(Output.object).mock.calls[0][0].schema as z.ZodType
     expect(schema.safeParse({ type: 'makeClip' }).success).toBe(true)
     expect(schema.safeParse({ type: 'wait', turns: 1 }).success).toBe(true)
     expect(schema.safeParse({ type: 'buyAutoClipper' }).success).toBe(false)
   })
 
+  describe('with plan mode enabled', () => {
+    beforeEach(() => { mockGenerateText.mockResolvedValue(mockGenerateTextOutput([sampleAgentAction])) })
+    const { createPlayer } = setupAiAgent({ planMode: true })
+
+    it('returns the response', async () => {
+      const player = createPlayer([])
+
+      const response = await player.play({ state: agentState, actions: agentActions })
+
+      expect(response).toEqual(expect.objectContaining({ plan: [sampleAgentAction] }))
+    })
+
+    it('sends a schema matching an array of all possible actions', async () => {
+      const player = createPlayer([])
+
+      await player.play({ state: agentState, actions: agentActions })
+
+      const schema = vi.mocked(Output.object).mock.calls[0][0].schema as z.ZodType
+      expect(schema.safeParse([{ type: 'makeClip' }]).success).toBe(true)
+      expect(schema.safeParse([{ type: 'buyAutoClipper' }]).success).toBe(true)
+      expect(schema.safeParse([{ type: 'makeClip' }, { type: 'buyAutoClipper' }, { type: 'wait', turns: 1 }]).success).toBe(true)
+      expect(schema.safeParse({ type: 'makeClip' }).success).toBe(false)
+    })
+  })
+
+
   it('can start a conversation on the first generation', async () => {
+    const { createPlayer } = setupAiAgent()
     const player = createPlayer([])
 
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
@@ -124,30 +156,31 @@ describe('player', () => {
       ],
     }))
     let generateTextPayload = mockGenerateText.mock.calls[0][0]
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
 
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
       messages: [
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
-        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
     generateTextPayload = mockGenerateText.mock.calls[1][0]
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
   })
 
   it('can carry a conversation on the nth generation', async () => {
-    const player = createPlayer([mockStrategicNotes])
+    const { createPlayer } = setupAiAgent()
+    const player = createPlayer([sampleStrategicNotes])
 
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       system: expect.toMatchSystemModelMessage(expect.stringContaining('picking up where someone else left off')),
@@ -156,67 +189,70 @@ describe('player', () => {
       ],
     }))
     let generateTextPayload = mockGenerateText.mock.calls[0][0]
-    expect(generateTextPayload.system).toMatchSystemModelMessage(expect.stringContaining(JSON.stringify([mockStrategicNotes])))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
+    expect(generateTextPayload.system).toMatchSystemModelMessage(expect.stringContaining(JSON.stringify([sampleStrategicNotes])))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
 
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       system: expect.toMatchSystemModelMessage(expect.stringContaining('picking up where someone else left off')),
       messages: [
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
-        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
     generateTextPayload = mockGenerateText.mock.calls[1][0]
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.available)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(actions.unavailable)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
   })
 
   it('removes state/actions beyond the most recent 4 responses', async () => {
+    const { createPlayer } = setupAiAgent()
     const player = createPlayer([])
 
     for (let i = 0; i < 6; i++) {
-      await player.play(prompt())
+      await player.play({ state: agentState, actions: agentActions })
     }
 
     expect(mockGenerateText).toHaveBeenLastCalledWith(expect.objectContaining({
       messages: [
-        expect.not.toMatchModelMessage('user', expect.stringContaining(JSON.stringify(state))),
-        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.not.toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState))),
+        expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
-        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
-        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
-        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
-        expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+        expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
         expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
       ],
     }))
   })
 
   it('can continue as long as the input token count is below 40,000', async () => {
-    const baseGenerateTextResult = mockGenerateTextOutput(mockAgentAction)
+    const baseGenerateTextResult = mockGenerateTextOutput(sampleAgentAction)
+    const { createPlayer } = setupAiAgent()
     const player = createPlayer([])
 
     mockGenerateText
       .mockResolvedValueOnce({ ...baseGenerateTextResult, usage: { ...baseGenerateTextResult.usage, inputTokens: 39_999 } })
       .mockResolvedValue({ ...baseGenerateTextResult, usage: { ...baseGenerateTextResult.usage, inputTokens: 1 } })
 
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
     expect(player.canContinue()).toBeTruthy()
-    await player.play(prompt())
+    await player.play({ state: agentState, actions: agentActions })
     expect(player.canContinue()).toBeFalsy()
   })
 
   describe('when a schema validation is encountered', () => {
     it('submits again with an explanation of the error', async () => {
+      const { createPlayer } = setupAiAgent()
       const player = createPlayer([])
       mockGenerateText
         .mockRejectedValueOnce(new NoObjectGeneratedError({
@@ -224,11 +260,11 @@ describe('player', () => {
           cause: new Error('Invalid input: expected number, received undefined'),
           text: '{"action":{"type":"wait"},"reasoning":"We have a healthy supply of wire"}',
         } as any))
-        .mockResolvedValueOnce(mockGenerateTextOutput(mockAgentAction))
+        .mockResolvedValueOnce(mockGenerateTextOutput(sampleAgentAction))
 
-      const response = await player.play(prompt())
+      const response = await player.play({ state: agentState, actions: agentActions })
 
-      expect(response).toEqual(expect.objectContaining({ action: mockAgentAction }))
+      expect(response).toEqual(expect.objectContaining({ plan: [sampleAgentAction] }))
       expect(mockGenerateText).toHaveBeenCalledTimes(2)
       expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
         system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
@@ -245,13 +281,13 @@ describe('player', () => {
         ],
       }))
 
-      await player.play(prompt())
+      await player.play({ state: agentState, actions: agentActions })
 
       expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
         system: expect.toMatchSystemModelMessage(expect.stringContaining("You're starting fresh with no prior context")),
         messages: [
           expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
-          expect.toMatchModelMessage('assistant', JSON.stringify(mockAgentAction)),
+          expect.toMatchModelMessage('assistant', JSON.stringify(sampleAgentAction)),
           expect.toMatchModelMessage('user', expect.stringContaining('Choose one action from the set of available actions')),
         ],
       }))
@@ -261,39 +297,39 @@ describe('player', () => {
   describe('when an API error is thrown', () => {
     beforeEach(() => { vi.useFakeTimers() })
     it('waits a moment then tries again', async () => {
+      const { createPlayer } = setupAiAgent()
       const player = createPlayer([])
       mockGenerateText
         .mockRejectedValueOnce(new APICallError({ message: 'The operation was aborted', isRetryable: false, data: { code: 504 } } as any))
-        .mockResolvedValueOnce(mockGenerateTextOutput(mockAgentAction))
+        .mockResolvedValueOnce(mockGenerateTextOutput(sampleAgentAction))
 
-      const response = player.play(prompt())
+      const response = player.play({ state: agentState, actions: agentActions })
 
       await vi.advanceTimersByTimeAsync(124)
       expect(mockGenerateText).toHaveBeenCalledTimes(1)
       await vi.advanceTimersByTimeAsync(1)
       expect(mockGenerateText).toHaveBeenCalledTimes(2)
 
-      expect(await response).toEqual(expect.objectContaining({ action: mockAgentAction }))
+      expect(await response).toEqual(expect.objectContaining({ plan: [sampleAgentAction] }))
     })
   })
 })
 
 describe('summarize', () => {
-  const { summarize } = createAiAgent({ agent: { provider: 'anthropic', model: 'claude-monet-1-0' }, summarizer: { provider: 'anthropic', model: 'claude-debussy-1-0' }, verbosity: 0 })
-
   const mockTranscript: TickInteraction[] = [
     {
-      prompt: prompt(),
-      response: { action: mockAgentAction, reasoning: '' },
+      prompt: { state: agentState, actions: agentActions },
+      response: { plan: [sampleAgentAction], reasoning: '' },
     },
   ]
 
   beforeEach(() => {
-    mockGenerateText.mockResolvedValue(mockGenerateTextOutput(mockStrategicNotes))
+    mockGenerateText.mockResolvedValue(mockGenerateTextOutput(sampleStrategicNotes))
   })
 
   it('sets the model according to the argument', async () => {
-    await summarize([mockStrategicNotes], mockTranscript)
+    const { summarize } = setupAiAgent({ summarizer: { model: 'claude-debussy-1-0' }})
+    await summarize([sampleStrategicNotes], mockTranscript)
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       model: expect.objectContaining({ modelId: 'claude-debussy-1-0' }),
@@ -301,16 +337,18 @@ describe('summarize', () => {
   })
 
   it('includes the prior notes and transcript in the prompt', async () => {
-    await summarize([mockStrategicNotes], mockTranscript)
+    const { summarize } = setupAiAgent()
+    await summarize([sampleStrategicNotes], mockTranscript)
 
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       system: expect.toMatchSystemModelMessage(expect.stringContaining('You are maintaining a rolling set of strategic notes')),
-      messages: [expect.toMatchModelMessage('user', expect.stringContaining(JSON.stringify([mockStrategicNotes])))],
+      messages: [expect.toMatchModelMessage('user', expect.stringContaining(JSON.stringify([sampleStrategicNotes])))],
     }))
   })
 
   it('returns the output from generateText', async () => {
-    const result = await summarize([mockStrategicNotes], mockTranscript)
-    expect(result).toEqual(mockStrategicNotes)
+    const { summarize } = setupAiAgent()
+    const result = await summarize([sampleStrategicNotes], mockTranscript)
+    expect(result).toEqual(sampleStrategicNotes)
   })
 })

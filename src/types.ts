@@ -107,7 +107,7 @@ export const agentActionSchema = z.discriminatedUnion('type', [
 export type AgentAction = z.infer<typeof agentActionSchema>
 
 export type AgentResponse = {
-  action: AgentAction
+  plan: AgentAction[]
   reasoning?: string
 }
 
@@ -150,6 +150,7 @@ export type LLMAgentSpec = {
 export type LLMAgentOptions = {
   agent: LLMAgentSpec
   summarizer: LLMAgentSpec
+  planMode: boolean
   verbosity: number
 }
 export type AgentOptions = { type: 'fake'; verbosity: number } | ({ type: 'llm' } & LLMAgentOptions)

@@ -47,8 +47,9 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
 
   const actionCounts: Record<string, number> = {}
   for (const { response } of transcript) {
-    const key = response.action.type
-    actionCounts[key] = (actionCounts[key] ?? 0) + 1
+    for (const action of response.plan) {
+      actionCounts[action.type] = (actionCounts[action.type] ?? 0) + 1
+    }
   }
 
   const timestamp = new Date().toISOString()
@@ -233,13 +234,13 @@ export default function createFakeAgent(): AgentTeam {
       priorityProjects[p.projectId].shouldExecute(state)
     )
     if (urgentProject) {
-      return { action: urgentProject, reasoning: `${urgentProject.title} is available, completing it first.` }
+      return { plan: [urgentProject], reasoning: `${urgentProject.title} is available, completing it first.` }
     }
 
     // ─── 1. RESOURCE SAFETY ───────────────────────────────────────────────────
     // Emergency wire: don't let production stall for any reason
     if (buyWire && state.production.wire! < state.economy!.publicDemand! * 0.5) {
-      return { action: buyWire, reasoning: 'Wire critically low — buying before anything else.' }
+      return { plan: [buyWire], reasoning: 'Wire critically low — buying before anything else.' }
     }
 
     // Fund floor: ensure we can afford wire
@@ -249,12 +250,12 @@ export default function createFakeAgent(): AgentTeam {
       state.production.funds! < state.economy!.wireCostPerSpool * 1.5 &&
       state.investment!.bankroll > 0
     ) {
-      return { action: investWithdraw, reasoning: 'Funds too low for wire — withdrawing.' }
+      return { plan: [investWithdraw], reasoning: 'Funds too low for wire — withdrawing.' }
     }
 
     // ─── 2. CHEAP WIRE STOCKPILE ──────────────────────────────────────────────
     if (buyWire && state.economy!.wireCostPerSpool <= 17) {
-      return { action: buyWire, reasoning: 'Wire is cheap, stocking up.' }
+      return { plan: [buyWire], reasoning: 'Wire is cheap, stocking up.' }
     }
 
     // ─── 3. PRIORITY PROJECTS ─────────────────────────────────────────────────
@@ -264,7 +265,7 @@ export default function createFakeAgent(): AgentTeam {
       priorityProjects[p.projectId]?.shouldExecute(state)
     )
     if (nonUrgentProject) {
-      return { action: nonUrgentProject, reasoning: `${nonUrgentProject.title} is available, it's not urgent but it's still important.` }
+      return { plan: [nonUrgentProject], reasoning: `${nonUrgentProject.title} is available, it's not urgent but it's still important.` }
     }
 
     // ─── 4. COMPUTE ───────────────────────────────────────────────────────────
@@ -273,27 +274,27 @@ export default function createFakeAgent(): AgentTeam {
 
     if (addProcessor && addMemory) {
       if (state.compute!.processors < 5) {
-        return { action: addProcessor, reasoning: 'Building up to 6 processors.' }
+        return { plan: [addProcessor], reasoning: 'Building up to 6 processors.' }
       } else if (state.compute!.memory < 50) {
-        return { action: addMemory, reasoning: 'Adding memory to accumulate ops.' }
+        return { plan: [addMemory], reasoning: 'Adding memory to accumulate ops.' }
       } else if (state.compute!.processors < 30) {
-        return { action: addProcessor, reasoning: 'Building up to 30 processors.' }
+        return { plan: [addProcessor], reasoning: 'Building up to 30 processors.' }
       } else if (state.compute!.memory < 100) {
-        return { action: addMemory, reasoning: 'Adding memory to ultimately release the hypnodrones.' }
+        return { plan: [addMemory], reasoning: 'Adding memory to ultimately release the hypnodrones.' }
       } else if (state.compute!.processors < 50) {
-        return { action: addProcessor, reasoning: 'Upping processing power.' }
+        return { plan: [addProcessor], reasoning: 'Upping processing power.' }
       } else if (state.compute!.memory < 300) {
-        return { action: addMemory, reasoning: 'Getting all the memory I could ever need' }
+        return { plan: [addMemory], reasoning: 'Getting all the memory I could ever need' }
       } else if (state.compute!.processors < 400) {
-        return { action: addProcessor, reasoning: 'Getting all the processors I could ever need' }
+        return { plan: [addProcessor], reasoning: 'Getting all the processors I could ever need' }
       } else {
-        return { action: addProcessor, reasoning: 'Adding even more processing power.' }
+        return { plan: [addProcessor], reasoning: 'Adding even more processing power.' }
       }
     }
 
     const chooseA100 = available.find((a): a is AgentAction => a.type === 'chooseStrategy' && a.strategy === 'A100')
     if (chooseA100) {
-      return { action: chooseA100, reasoning: 'A100 is the winning strategy.' }
+      return { plan: [chooseA100], reasoning: 'A100 is the winning strategy.' }
     }
 
     const runTournament = find('runTournament')
@@ -311,7 +312,7 @@ export default function createFakeAgent(): AgentTeam {
       )
       const shouldWaitForProject = shouldWaitForGlobalWarming || shouldWaitForHypnoDrones
       if (opsNearCap && state.compute.creativity! >= creativityFloor[determinePhase(state)] && !shouldWaitForProject) {
-        return { action: runTournament, reasoning: 'Ops near cap with sufficient creativity — running tournament.' }
+        return { plan: [runTournament], reasoning: 'Ops near cap with sufficient creativity — running tournament.' }
       }
     }
 
@@ -324,7 +325,7 @@ export default function createFakeAgent(): AgentTeam {
           state.investment.bankroll > 0 &&
           state.production.funds! + state.investment.bankroll >= 500_000
         ) {
-          return { action: investWithdraw, reasoning: 'Withdrawing to afford A Token of Goodwill.' }
+          return { plan: [investWithdraw], reasoning: 'Withdrawing to afford A Token of Goodwill.' }
         }
         if (
           investWithdraw &&
@@ -332,7 +333,7 @@ export default function createFakeAgent(): AgentTeam {
           state.investment.bankroll > 0 &&
           state.production.funds! + state.investment.bankroll >= 1_000_000
         ) {
-          return { action: investWithdraw, reasoning: 'Withdrawing to afford Hostile Takeover.' }
+          return { plan: [investWithdraw], reasoning: 'Withdrawing to afford Hostile Takeover.' }
         }
         if (
           investWithdraw &&
@@ -340,14 +341,14 @@ export default function createFakeAgent(): AgentTeam {
           state.investment.bankroll > 0 &&
           state.production.funds! + state.investment.bankroll >= 10_000_000
         ) {
-          return { action: investWithdraw, reasoning: 'Withdrawing to afford Full Monopoly.' }
+          return { plan: [investWithdraw], reasoning: 'Withdrawing to afford Full Monopoly.' }
         }
       }
 
       // Proactive wire buffer (below emergency floor but ahead of empty)
       const wireNeedMultiplier = ((state.production.megaClippers ?? 0) > 0 ? 1.5 : 1) * (!state.projects?.project26 ? 1.15 : 1)
       if (buyWire && state.production.wire! < state.economy.publicDemand! * wireNeedMultiplier) {
-        return { action: buyWire, reasoning: 'Wire buffer low — topping up.' }
+        return { plan: [buyWire], reasoning: 'Wire buffer low — topping up.' }
       }
 
       const buyAutoClipper = find('buyAutoClipper')
@@ -358,7 +359,7 @@ export default function createFakeAgent(): AgentTeam {
       const wireIsSustainable = ticksPerSpool >= 1.25  // some headroom
 
       if (buyMarketing && state.economy.clipPrice === 0.01) {
-        return { action: buyMarketing, reasoning: 'Price at floor — buying marketing.' }
+        return { plan: [buyMarketing], reasoning: 'Price at floor — buying marketing.' }
       }
       if (
         buyAutoClipper &&
@@ -366,7 +367,7 @@ export default function createFakeAgent(): AgentTeam {
         wireIsSustainable &&
         state.production.funds! - state.production.autoClipperCost! >= state.economy.wireCostPerSpool!
       ) {
-        return { action: buyAutoClipper, reasoning: 'Building to 75 autoclippers.' }
+        return { plan: [buyAutoClipper], reasoning: 'Building to 75 autoclippers.' }
       }
       if (
         buyMegaClipper &&
@@ -374,7 +375,7 @@ export default function createFakeAgent(): AgentTeam {
         wireIsSustainable &&
         state.production.funds! - state.production.megaClipperCost! >= state.economy.wireCostPerSpool!
       ) {
-        return { action: buyMegaClipper, reasoning: 'Buying mega clipper to REALLY increase production.' }
+        return { plan: [buyMegaClipper], reasoning: 'Buying mega clipper to REALLY increase production.' }
       }
 
       const lowerPrice = find('lowerPrice')
@@ -389,12 +390,12 @@ export default function createFakeAgent(): AgentTeam {
       const targetTicksOfInventory = 45
       if (raisePrice && (preparingForProject || ((state.production.autoClippers ?? 0) > 0 && ticksOfInventory <= targetTicksOfInventory / 2))) {
         return {
-          action: raisePrice,
+          plan: [raisePrice],
           reasoning: preparingForProject ? 'Gotta get ready for a big project!' : 'Inventory lean — raising price.'
         }
       }
       if (lowerPrice && !preparingForProject && ticksOfInventory > targetTicksOfInventory * 2) {
-        return { action: lowerPrice, reasoning: 'Too much inventory — lowering price.' }
+        return { plan: [lowerPrice], reasoning: 'Too much inventory — lowering price.' }
       }
     }
 
@@ -409,22 +410,22 @@ export default function createFakeAgent(): AgentTeam {
 
       // Bootstrap: need at least 1 of each in dependency order
       if (earth.farmLevel === 0 && buyFarm) {
-        return { action: buyFarm, reasoning: 'Need first farm for power production.' }
+        return { plan: [buyFarm], reasoning: 'Need first farm for power production.' }
       }
       if (earth.batteryLevel === 0 && buyBattery) {
-        return { action: buyBattery, reasoning: 'Need first battery for power storage.' }
+        return { plan: [buyBattery], reasoning: 'Need first battery for power storage.' }
       }
       if (earth.harvesterLevel === 0 && buyHarvester) {
-        return { action: buyHarvester, reasoning: 'Need first harvester for matter acquisition.' }
+        return { plan: [buyHarvester], reasoning: 'Need first harvester for matter acquisition.' }
       }
       if (earth.wireDroneLevel === 0 && buyWireDrone) {
-        return { action: buyWireDrone, reasoning: 'Need first wire drone for wire production.' }
+        return { plan: [buyWireDrone], reasoning: 'Need first wire drone for wire production.' }
       }
       if (earth.factoryLevel === 0 && buyFactory) {
-        return { action: buyFactory, reasoning: 'Need first factory to start clip production.' }
+        return { plan: [buyFactory], reasoning: 'Need first factory to start clip production.' }
       }
       if ([earth.farmLevel, earth.batteryLevel, earth.harvesterLevel, earth.wireDroneLevel, earth.factoryLevel].some(l => l === undefined || l === 0)) {
-        return { action: { type: 'wait', turns: 1 }, reasoning: 'Not enough clips to build what we need, holding off until then.' }
+        return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Not enough clips to build what we need, holding off until then.' }
       }
 
       const prevEarth = previousState.earth as Required<NonNullable<typeof previousState.earth>>
@@ -433,12 +434,12 @@ export default function createFakeAgent(): AgentTeam {
         earth.powerConsumptionRate + additionalMW >= earth.powerProductionRate
 
       const buyFarmIfAffordable = buyFarm
-        ? { action: buyFarm, reasoning: 'Power constrained — buying farm first.' }
-        : { action: { type: 'wait' as const, turns: 1 }, reasoning: 'Power constrained but farm unaffordable — waiting.' }
+        ? { plan: [buyFarm], reasoning: 'Power constrained — buying farm first.' }
+        : { plan: [{ type: 'wait' as const, turns: 1 }], reasoning: 'Power constrained but farm unaffordable — waiting.' }
 
       // Priority 1: power consumption already at or exceeding production
       if (earth.powerConsumptionRate >= earth.powerProductionRate && buyFarm) {
-        return { action: buyFarm, reasoning: 'Consuming as much power as we produce — buying farm.' }
+        return { plan: [buyFarm], reasoning: 'Consuming as much power as we produce — buying farm.' }
       }
 
       const matterTrendingDown = earth.acquiredMatter < prevEarth.acquiredMatter || earth.acquiredMatter === 0
@@ -455,29 +456,29 @@ export default function createFakeAgent(): AgentTeam {
       const batteryDelaysFactoryBy = ticksToFactoryAfterBattery - ticksToFactoryNow
 
       if (shouldBuyBattery && batteryDelaysFactoryBy < 10 && buyBattery) {
-        return { action: buyBattery, reasoning: 'Battery at capacity — expanding storage.' }
+        return { plan: [buyBattery], reasoning: 'Battery at capacity — expanding storage.' }
       }
 
       // Priority 3: matter throughput falling and matter remains
       if (matterTrendingDown && earth.availableMatter > 0) {
         if (powerConstrained(1)) return buyFarmIfAffordable
-        if (buyHarvester) return { action: buyHarvester, reasoning: 'Acquired matter trending down — buying harvester.' }
-        return { action: { type: 'wait', turns: 1 }, reasoning: 'Saving up for a harvester.' }
+        if (buyHarvester) return { plan: [buyHarvester], reasoning: 'Acquired matter trending down — buying harvester.' }
+        return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for a harvester.' }
       }
 
       // Priority 4: wire trending down
       if (wireTrendingDown) {
         if (powerConstrained(1)) return buyFarmIfAffordable
-        if (buyWireDrone) return { action: buyWireDrone, reasoning: 'wire trending down — buying wire drone.' }
-        return { action: { type: 'wait', turns: 1 }, reasoning: 'Saving up for a wire drone.' }
+        if (buyWireDrone) return { plan: [buyWireDrone], reasoning: 'wire trending down — buying wire drone.' }
+        return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for a wire drone.' }
       }
 
       // Priority 5: wire trending up — factories are the bottleneck
       const wireTrendingUp = state.production.wire > previousState.production.wire
       if (wireTrendingUp) {
         if (powerConstrained(50)) return buyFarmIfAffordable
-        if (buyFactory) return { action: buyFactory, reasoning: 'wire accumulating — buying factory.' }
-        return { action: { type: 'wait', turns: 1 }, reasoning: 'Saving up for factory.' }
+        if (buyFactory) return { plan: [buyFactory], reasoning: 'wire accumulating — buying factory.' }
+        return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for factory.' }
       }
     }
 
@@ -493,7 +494,7 @@ export default function createFakeAgent(): AgentTeam {
         secondsOfInventory >= 3 &&
         tickCount % depositFrequency === 0
       ) {
-        return { action: investDeposit, reasoning: 'Conditions good — depositing funds.' }
+        return { plan: [investDeposit], reasoning: 'Conditions good — depositing funds.' }
       }
 
       if (
@@ -501,16 +502,16 @@ export default function createFakeAgent(): AgentTeam {
         state.investment.investLevel < 14 &&
         state.strategy.yomi >= state.investment.investUpgradeCost
       ) {
-        return { action: investUpgrade, reasoning: 'Upgrading investment engine.' }
+        return { plan: [investUpgrade], reasoning: 'Upgrading investment engine.' }
       }
 
       const highRisk = findRisk('hi')
       if (highRisk && state.investment.investLevel >= 5 && state.investment.riskMode === 'med') {
-        return { action: highRisk, reasoning: 'Switching to high risk at level 5+.' }
+        return { plan: [highRisk], reasoning: 'Switching to high risk at level 5+.' }
       }
       const mediumRisk = findRisk('med')
       if (mediumRisk && state.investment.investLevel >= 3 && state.investment.riskMode === 'low') {
-        return { action: mediumRisk, reasoning: 'Switching to medium risk at level 3+.' }
+        return { plan: [mediumRisk], reasoning: 'Switching to medium risk at level 3+.' }
       }
       if (
         investWithdraw &&
@@ -518,21 +519,21 @@ export default function createFakeAgent(): AgentTeam {
         state.investment.bankroll > state.production.megaClipperCost! &&
         tickCount % 30 === 0
       ) {
-        return { action: investWithdraw, reasoning: 'Opportunistic withdraw to put gains to work.' }
+        return { plan: [investWithdraw], reasoning: 'Opportunistic withdraw to put gains to work.' }
       }
     }
 
     const makeClip = find('makeClip')
     if (makeClip && ['boot', 'compute', 'industry'].includes(phase)) {
-      return { action: makeClip, reasoning: 'Making clips is how we win! ...Right?' }
+      return { plan: [makeClip], reasoning: 'Making clips is how we win! ...Right?' }
     }
 
     const fallback = available.find((a): a is AgentAction => !['wait'].includes(a.type))
     if (fallback) {
-      return { action: fallback, reasoning: `Falling back to ${fallback.type}.` }
+      return { plan: [fallback], reasoning: `Falling back to ${fallback.type}.` }
     }
 
-    return { action: { type: 'wait', turns: 1 }, reasoning: 'Nothing available — waiting.' }
+    return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Nothing available — waiting.' }
   }
 
   return {

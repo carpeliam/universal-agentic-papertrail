@@ -6,18 +6,19 @@ import type { Player } from "@/agent"
 describe('run', () => {
   it('dispatches each action', async () => {
     const initialState = createInitialGameState()
-    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
-    const newGameState = reduceGameState(initialState, { type: 'makeClip' })
-    const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(newGameState))
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }, { type: 'makeClip' }], reasoning: '' })
+    const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(initialState))
 
     await run(createPlayer(fakePlay), fakeDispatch, initialState, [])
 
-    expect(fakeDispatch).toHaveBeenCalledWith(initialState, { type: 'makeClip' })
-    expect(fakeDispatch).toHaveBeenCalledWith(newGameState, expect.objectContaining({ type: 'tick' }))
+    expect(fakeDispatch).toHaveBeenNthCalledWith(1, initialState, { type: 'makeClip' })
+    expect(fakeDispatch).toHaveBeenNthCalledWith(2, initialState, expect.objectContaining({ type: 'tick' }))
+    expect(fakeDispatch).toHaveBeenNthCalledWith(3, initialState, { type: 'makeClip' })
+    expect(fakeDispatch).toHaveBeenNthCalledWith(4, initialState, expect.objectContaining({ type: 'tick' }))
   })
   it('returns a transcript with one record per tick', async () => {
     const initialState = createInitialGameState()
-    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }], reasoning: '' })
     const fakeCanContinue = vi.fn<Player['canContinue']>().mockReturnValueOnce(true).mockReturnValueOnce(true).mockReturnValue(false)
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
@@ -31,7 +32,7 @@ describe('run', () => {
       ...initialState,
       space: { ...initialState.space, totalMatter: 100, foundMatter: 100 },
     }
-    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }], reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
     await run(createPlayer(fakePlay), fakeDispatch, winState, [])
@@ -42,7 +43,7 @@ describe('run', () => {
   it('returns early if the game stalls part way through', async () => {
     const initialState = createInitialGameState()
     const stalledState = { ...initialState, earth: { ...initialState.earth, humanFlag: false, spaceFlag: true } }
-    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }], reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
     await run(createPlayer(fakePlay), fakeDispatch, stalledState, [])
@@ -55,7 +56,7 @@ describe('run', () => {
 describe('createRunner', () => {
   it('asks the agent to rewrite notes at the end of the generation', async () => {
     const initialState = createInitialGameState()
-    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ action: { type: 'makeClip' }, reasoning: '' })
+    const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }], reasoning: '' })
     const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
@@ -67,10 +68,10 @@ describe('createRunner', () => {
       [],
       expect.arrayContaining([
         expect.objectContaining({
-          response: { action: { type: 'makeClip' }, reasoning: '' }
+          response: { plan: [{ type: 'makeClip' }], reasoning: '' }
         }),
         expect.objectContaining({
-          response: { action: { type: 'makeClip' }, reasoning: '' }
+          response: { plan: [{ type: 'makeClip' }], reasoning: '' }
         })
       ])
     )

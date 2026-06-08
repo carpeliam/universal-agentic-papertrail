@@ -27,10 +27,12 @@ export async function run(createPlayer: AgentTeam['createPlayer'], dispatch: Dis
     const prompt = createAgentPrompt(currentState)
     const response = await player.play(prompt)
     transcript.push({ prompt, response })
-    for (const action of toGameActions(response.action, currentState)) {
-      currentState = await dispatch(currentState, action)
+    for (const agentAction of response.plan) {
+      for (const gameAction of toGameActions(agentAction, currentState)) {
+        currentState = await dispatch(currentState, gameAction)
+      }
+      currentState = await dispatch(currentState, { type: 'tick', deltaMs: actionDuration(agentAction) })
     }
-    currentState = await dispatch(currentState, { type: 'tick', deltaMs: actionDuration(response.action) })
   }
 
   events.emit('generationCompleted', { state: currentState, transcript })

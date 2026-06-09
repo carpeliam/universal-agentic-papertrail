@@ -100,6 +100,7 @@ describe('toAgentState', () => {
     expect(agentState.production).toHaveProperty('autoClipperCost')
     expect(agentState).toHaveProperty('economy')
     expect(agentState.compute).toHaveProperty('trust')
+    expect(agentState.compute).toHaveProperty('nextTrust')
     agentState = toAgentState(applyExpansionState(partialState))
     expect(agentState.production).not.toHaveProperty('unsoldClips')
     expect(agentState.production).toHaveProperty('unusedClips')
@@ -111,6 +112,7 @@ describe('toAgentState', () => {
     expect(agentState.production).not.toHaveProperty('megaClipperCost')
     expect(agentState).not.toHaveProperty('economy')
     expect(agentState.compute).not.toHaveProperty('trust')
+    expect(agentState.compute).not.toHaveProperty('nextTrust')
   })
 
   it('only exposes limited earth state during the expansion phase', () => {

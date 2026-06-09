@@ -12,7 +12,7 @@ type AgentProduction = Pick<GameState['production'], 'clips' | 'wire'>
 type AgentEconomy = Pick<GameState['economy'], 'clipPrice' | 'wireSupply'>
   & { wireCostPerSpool: number, marketingCost: number, publicDemand?: number }
 type AgentCompute = Pick<GameState['compute'], 'processors' | 'memory' | 'operations'>
-  & Partial<Pick<GameState['compute'], 'trust' | 'creativity'>>
+  & Partial<Pick<GameState['compute'], 'trust' | 'nextTrust' | 'creativity'>>
 type AgentStrategy = Pick<GameState['strategy'], 'strategies' | 'selectedStrategy' | 'yomi' | 'tourneyCost' | 'tourneyLevel' | 'lastResults' | 'lastPayoffMatrix' | 'hMovePrev' | 'vMovePrev'>
   & Partial<Pick<GameState['strategy'], 'autoTourneyEnabled'>>
 type AgentEarth = Partial<Pick<GameState['earth'],

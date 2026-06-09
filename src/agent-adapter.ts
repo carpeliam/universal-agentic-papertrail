@@ -33,12 +33,12 @@ function economyStateFor(state: GameState): Pick<AgentState, 'economy'> {
 }
 
 function computeStateFor(state: GameState): Pick<AgentState, 'compute'> {
-  const { unlocked, processors, memory, operations, trust, creativity, creativityOn } = state.compute
+  const { unlocked, processors, memory, operations, trust, nextTrust, creativity, creativityOn } = state.compute
   return (unlocked)
     ? {
       compute: {
         processors, memory, operations,
-        ...(state.earth.humanFlag && { trust }),
+        ...(state.earth.humanFlag && { trust, nextTrust }),
         ...(creativityOn && { creativity }),
       }
     }

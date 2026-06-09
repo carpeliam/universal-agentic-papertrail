@@ -1,4 +1,4 @@
-import { APICallError, generateText, GenerateTextResult, NoObjectGeneratedError, Output, SystemModelMessage, type FlexibleSchema, type LanguageModel, type ModelMessage, type UserContent } from "ai"
+import { APICallError, generateText, GenerateTextResult, NoObjectGeneratedError, NoOutputGeneratedError, Output, SystemModelMessage, type FlexibleSchema, type LanguageModel, type ModelMessage, type UserContent } from "ai"
 import { z } from "zod"
 import { anthropic, type AnthropicLanguageModelOptions } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
@@ -50,6 +50,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
         events.emit('turnExecuted', { action: output, reasoning: reasoningText, ...extractCompletionMetadata(result) })
         return result
       } catch (err) {
+        console.warn(err)
         if (i === maxAttempts - 1) {
           throw err
         }
@@ -64,6 +65,14 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
             { role: 'user', content: `Your previous response did not match the required schema. Error: ${err.cause.message}\nPlease try again.` }
           ]
           this.log(LOG_INFO, 'schema validation failed, retrying:', err.cause)
+          continue
+        }
+        if (NoOutputGeneratedError.isInstance(err)) {
+          messages = [
+            ...messages,
+            { role: 'user', content: 'Your previous response was empty. Please reevaluate and try again.' }
+          ]
+          this.log(LOG_INFO, 'agent returned no output:', err.cause)
           continue
         }
         throw err

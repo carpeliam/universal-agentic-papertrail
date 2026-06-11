@@ -298,7 +298,7 @@ export function getActions(state: GameState): AgentActions {
 }
 
 export function createAgentPrompt(state: GameState): AgentPrompt {
-  return { state: toAgentState(state), actions: getActions(state) }
+  return { state, actions: getActions(state) }
 }
 
 export function toGameActions(action: AgentAction, state: GameState): GameAction[] {

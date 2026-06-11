@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { createInitialGameState, type GamePhase, type GameState } from "paperclips-remake"
 import { actionDuration, getActions, toAgentState, toGameActions } from "@/agent-adapter"
-import { applyComputeState, applyExpansionState, applySpaceState, generateActiveBattle } from "./helper"
+import { applyComputeState, applyExpansionState, applyGameState, applySpaceState, generateActiveBattle, withAutoClippersEnabled, withMegaClippersEnabled } from "./helper"
 
 describe('toAgentState', () => {
   it('does not expose internal implementation details to the agent', () => {
@@ -43,34 +43,21 @@ describe('toAgentState', () => {
   })
 
   it('only exposes auto clipper information once they are available', () => {
-    const initialState = createInitialGameState()
-
-    let agentState = toAgentState(initialState)
+    let agentState = toAgentState(createInitialGameState())
     expect(agentState.production).not.toHaveProperty('autoClippers')
     expect(agentState.production).not.toHaveProperty('autoClipperCost')
 
-    const stateWithAutoClippers: GameState = {
-      ...initialState,
-      production: { ...initialState.production, funds: 6 },
-    }
-    agentState = toAgentState(stateWithAutoClippers)
+    agentState = toAgentState(applyGameState(withAutoClippersEnabled()))
     expect(agentState.production).toHaveProperty('autoClippers')
     expect(agentState.production).toHaveProperty('autoClipperCost')
   })
 
   it('only exposes mega clipper information once they are available', () => {
-    const initialState = createInitialGameState()
-
-    let agentState = toAgentState(initialState)
+    let agentState = toAgentState(createInitialGameState())
     expect(agentState.production).not.toHaveProperty('megaClippers')
     expect(agentState.production).not.toHaveProperty('megaClipperCost')
 
-    const stateWithMegaClippers: GameState = {
-      ...initialState,
-      earth: { ...initialState.earth, humanFlag: true },
-      projects: { ...initialState.projects, project22: true },
-    }
-    agentState = toAgentState(stateWithMegaClippers)
+    agentState = toAgentState(applyGameState(withMegaClippersEnabled()))
     expect(agentState.production).toHaveProperty('megaClippers')
     expect(agentState.production).toHaveProperty('megaClipperCost')
   })

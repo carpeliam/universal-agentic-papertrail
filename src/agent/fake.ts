@@ -2,6 +2,7 @@ import readline from 'node:readline'
 import path from 'node:path'
 import fs from 'node:fs'
 import type { InvestmentRiskMode, ProjectId } from 'paperclips-remake'
+import { toAgentState } from '@/agent-adapter'
 import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction, PromptAction } from '@/types'
 import type { AgentTeam } from '.'
 
@@ -37,8 +38,8 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
   const first = transcript.at(0)!.prompt
   const last  = transcript.at(-1)!.prompt
 
-  const endState   = last.state
-  const startState = first.state
+  const endState   = toAgentState(last.state)
+  const startState = toAgentState(first.state)
 
   const clips = endState.production.clips
   const wire  = endState.production.wire
@@ -126,7 +127,7 @@ export default function createFakeAgent(): AgentTeam {
   async function play(prompt: AgentPrompt): Promise<AgentResponse> {
     await new Promise(resolve => setTimeout(resolve, 5))
     const previousState = capturedState
-    capturedState = prompt.state
+    capturedState = toAgentState(prompt.state)
     tickCount++
     const priorityProjects: Record<string, { urgent: boolean, shouldExecute: (state: AgentState) => boolean }> = {
       project26: { urgent: true, shouldExecute: () => true },        // WireBuyer
@@ -215,7 +216,8 @@ export default function createFakeAgent(): AgentTeam {
       project134: { urgent: false, shouldExecute: () => true },      // Glory
     }
 
-    const { state, actions: { available, unavailable } } = prompt
+    const { state: gameState, actions: { available, unavailable } } = prompt
+    const state = toAgentState(gameState)
     const phase = determinePhase(state)
 
     const find = (type: AgentAction['type']) => available.find((a): a is AgentAction => a.type === type)

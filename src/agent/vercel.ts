@@ -5,9 +5,10 @@ import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
 import { openrouter, type OpenRouterUsageAccounting } from '@openrouter/ai-sdk-provider'
-import { agentActionSchema, strategicNotesSchema, type LLMAgentOptions, type LLMAgentSpec, type AgentPrompt, type AgentResponse, type StrategicNotes, type TickInteraction, PromptAction } from "@/types"
+import { toAgentState } from "@/agent-adapter"
 import { events } from "@/events"
-import { AgentTeam } from "."
+import { agentActionSchema, strategicNotesSchema, type AgentPrompt, type AgentResponse, type LLMAgentOptions, type LLMAgentSpec, type PromptAction, type StrategicNotes, type TickInteraction } from "@/types"
+import type { AgentTeam } from "."
 
 const ollama = createOllama()
 
@@ -120,7 +121,7 @@ class Player extends Communicator<typeof agentActionSchema> {
     this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
     const { output, usage, reasoningText } = await this.submit([
       { type: 'text', text: this.actionInstructions },
-      { type: 'text', text: `Current environment: ${JSON.stringify(state)}` },
+      { type: 'text', text: `Current environment: ${JSON.stringify(toAgentState(state))}` },
       { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
       { type: 'text', text: `Visible but currently unperformable actions: ${JSON.stringify(actions.unavailable)}` },
     ], this.schemaFor(actions.available))
@@ -169,8 +170,15 @@ and signal matter more than completeness. Respond in JSON.`
 
   async summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
     this.startFreshEveryTime()
+    const transformedTranscript = transcript.map(({ prompt, response }) => ({
+      prompt: { state: toAgentState(prompt.state), actions: prompt.actions },
+      response,
+    }))
     this.log(LOG_INFO, 'summarizing')
-    const { output } = await this.submit(`Prior notes:\n${JSON.stringify(priorNotes)}\n\nTranscript:\n${JSON.stringify(transcript)}`)
+    const { output } = await this.submit([
+      { type: 'text', text: `<PriorNotes>${JSON.stringify(priorNotes)}</PriorNotes>` },
+      { type: 'text', text: `<Transcript>${JSON.stringify(transformedTranscript)}</Transcript>` },
+    ])
     return output
   }
 

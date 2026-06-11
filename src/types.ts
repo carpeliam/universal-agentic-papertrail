@@ -132,7 +132,7 @@ export const strategicNotesSchema = z.object({
 export type StrategicNotes = z.infer<typeof strategicNotesSchema>
 
 export type AgentPrompt = {
-  state: AgentState
+  state: GameState
   actions: AgentActions
 }
 

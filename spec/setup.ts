@@ -24,7 +24,9 @@ expect.extend({
       message: () =>
         pass
           ? `Expected message to NOT match role "${expectedRole}" with text condition.`
-          : `Expected message to match role "${expectedRole}" with text condition. Received: ${JSON.stringify(received)}`,
+          : `Expected message to match role "${expectedRole}" with text condition`,
+      actual: actualText,
+      expected: expectedText.sample ?? expectedText,
     }
   },
 
@@ -42,7 +44,9 @@ expect.extend({
       pass,
       message: () => pass
         ? `Expected system message NOT to match text condition.`
-        : `Expected system message to match text condition. Actual: "${actualText}"`,
+        : `Expected system message to match text condition.`,
+      actual: actualText,
+      expected: expectedText.sample ?? expectedText,
     }
   },
 })

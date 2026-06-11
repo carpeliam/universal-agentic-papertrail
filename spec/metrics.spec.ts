@@ -3,7 +3,6 @@ import { vol } from "memfs"
 import { createInitialGameState } from "paperclips-remake"
 import { metrics, initMetrics, type Metrics } from "@/metrics"
 import { TickInteraction } from "@/types"
-import { toAgentState } from "@/agent-adapter"
 import { events } from "@/events"
 import { applySpaceState } from "./helper"
 
@@ -117,7 +116,7 @@ describe('metrics', () => {
 function generateTickInteraction(): TickInteraction {
   return {
     prompt: {
-      state: toAgentState(createInitialGameState()),
+      state: createInitialGameState(),
       actions: { available: [{ type: 'wait', turns: 1 }], unavailable: [] },
     },
     response: { plan: [{ type: 'wait', turns: 1 }], reasoning: '' },

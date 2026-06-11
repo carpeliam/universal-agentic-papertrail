@@ -97,6 +97,7 @@ export const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('chooseInvestmentRisk'), mode: investmentRiskModeSchema }),
   z.object({ type: z.literal('runTournament').describe('run a Strategic Modeling tournament using the strategy.selectedStrategy at the cost of strategy.tourneyCost ops, earns yomi upon winning; see compute.operations for current ops balance') }),
   z.object({ type: z.literal('chooseStrategy').describe('chooses a Strategic Modeling tournament strategy'), strategy: strategySelectionSchema }),
+  z.object({ type: z.literal('toggleAutoTourney') }),
   z.object({ type: z.literal('addProcessor').describe('costs 1 trust; see compute.trust for available balance') }),
   z.object({ type: z.literal('addMemory').describe('costs 1 trust; see compute.trust for available balance') }),
   z.object({ type: z.literal('raisePrice').describe('raise price by $0.01') }),

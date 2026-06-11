@@ -267,6 +267,11 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     canActivate: (s) => canRunTournament(s),
     actions: () => [{ type: 'runTournament' }],
   },
+  {
+    isVisible: (s) => s.strategy.autoTourneyEnabled,
+    canActivate: (s) => true,
+    actions: () => [{ type: 'toggleAutoTourney' }],
+  },
 ]
 function getActionDescriptors(state: GameState): ActionDescriptor[] {
   const projectDescriptors = getActiveProjects(state).map(({ id: projectId, title, description, canActivate, costs }) => {

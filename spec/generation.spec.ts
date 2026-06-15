@@ -2,6 +2,7 @@ import { vi, describe, expect, it } from "vitest"
 import { createInitialGameState, reduceGameState } from "paperclips-remake"
 import { createRunner, run, type NotesAgent } from "@/generation"
 import type { Player } from "@/agent"
+import { applyGameState, withSpacePhase } from "./helper"
 
 describe('run', () => {
   it('dispatches each action', async () => {
@@ -27,11 +28,7 @@ describe('run', () => {
     expect(transcript).toHaveLength(2)
   })
   it('returns early if the game completes part way through', async () => {
-    const initialState = createInitialGameState()
-    const winState = {
-      ...initialState,
-      space: { ...initialState.space, totalMatter: 100, foundMatter: 100 },
-    }
+    const winState = applyGameState(withSpacePhase(), { space: { totalMatter: 100, foundMatter: 100 } })
     const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }], reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
@@ -41,8 +38,7 @@ describe('run', () => {
     expect(fakeDispatch).not.toHaveBeenCalled()
   })
   it('returns early if the game stalls part way through', async () => {
-    const initialState = createInitialGameState()
-    const stalledState = { ...initialState, earth: { ...initialState.earth, humanFlag: false, spaceFlag: true } }
+    const stalledState = applyGameState(withSpacePhase())
     const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }], reasoning: '' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 

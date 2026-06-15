@@ -5,10 +5,10 @@ import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
 import { openrouter, type OpenRouterUsageAccounting } from '@openrouter/ai-sdk-provider'
-import { toAgentState } from "@/agent-adapter"
 import { events } from "@/events"
 import { agentActionSchema, strategicNotesSchema, type AgentPrompt, type AgentResponse, type LLMAgentOptions, type LLMAgentSpec, type PromptAction, type StrategicNotes, type TickInteraction } from "@/types"
 import type { AgentTeam } from "."
+import { displayPrompt } from "./markdown-adapter"
 
 const ollama = createOllama()
 
@@ -121,9 +121,7 @@ class Player extends Communicator<typeof agentActionSchema> {
     this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
     const { output, usage, reasoningText } = await this.submit([
       { type: 'text', text: this.actionInstructions },
-      { type: 'text', text: `Current environment: ${JSON.stringify(toAgentState(state))}` },
-      { type: 'text', text: `Available actions: ${JSON.stringify(actions.available)}` },
-      { type: 'text', text: `Visible but currently unperformable actions: ${JSON.stringify(actions.unavailable)}` },
+      { type: 'text', text: displayPrompt(prompt) },
     ], this.schemaFor(actions.available))
     this.inputTokenCount += usage.inputTokens ?? 0
     return { plan: (this.isMultiTurn) ? output : [output], reasoning: reasoningText }
@@ -170,10 +168,7 @@ and signal matter more than completeness. Respond in JSON.`
 
   async summarize(priorNotes: StrategicNotes[], transcript: TickInteraction[]): Promise<StrategicNotes> {
     this.startFreshEveryTime()
-    const transformedTranscript = transcript.map(({ prompt, response }) => ({
-      prompt: { state: toAgentState(prompt.state), actions: prompt.actions },
-      response,
-    }))
+    const transformedTranscript = transcript.map(({ prompt, response }) => ({ prompt: displayPrompt(prompt), response }))
     this.log(LOG_INFO, 'summarizing')
     const { output } = await this.submit([
       { type: 'text', text: `<PriorNotes>${JSON.stringify(priorNotes)}</PriorNotes>` },
@@ -260,6 +255,6 @@ current environment. Is it what you would have expected? Update your reasoning a
 
 export function buildPlayInstructions(isMultiTurn: boolean): string {
   return (isMultiTurn)
-    ? `Submit a plan including one or more actions in the form of a JSON array.`
+    ? 'Submit a plan including one or more actions in the form of a JSON array.'
     : 'Choose one action from the set of available actions. Respond in JSON.'
 }

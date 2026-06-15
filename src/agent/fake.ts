@@ -1,9 +1,8 @@
 import readline from 'node:readline'
 import path from 'node:path'
 import fs from 'node:fs'
-import type { InvestmentRiskMode, ProjectId } from 'paperclips-remake'
-import { toAgentState } from '@/agent-adapter'
-import type { AgentAction, StrategicNotes, AgentPrompt, AgentState, AgentResponse, TickInteraction, PromptAction } from '@/types'
+import type { GameState, InvestmentRiskMode, ProjectId } from 'paperclips-remake'
+import type { AgentAction, StrategicNotes, AgentPrompt, AgentResponse, TickInteraction, PromptAction } from '@/types'
 import type { AgentTeam } from '.'
 
 const SUMMARY_LOG_FILE = path.resolve('data/run-summary.jsonl')
@@ -12,24 +11,24 @@ type GenerationLogEntry = {
   ticks: number
   phase: string
   availableActions: PromptAction[]
-  endState: AgentState
+  endState: GameState
   actions: Record<string, number>
 }
 function writeLogSummary(entry: GenerationLogEntry): void {
   fs.appendFileSync(SUMMARY_LOG_FILE, JSON.stringify(entry) + '\n', 'utf8')
 }
 
-function determinePhase(state: AgentState) {
-  if (state.projects?.project46) {
+function determinePhase(state: GameState) {
+  if (state.projects.project46) {
     return 'space'
   }
-  if (state.projects?.project35) {
+  if (state.projects.project35) {
     return 'expansion'
   }
-  if ('compute' in state) {
+  if (state.compute.unlocked) {
     return 'compute'
   }
-  if ((state.production.autoClippers ?? 0) > 0 || (state.production.marketingLevel ?? 0) > 1 || 'projects' in state) {
+  if (state.production.autoClippers > 0 || state.production.marketingLevel > 1 || 'projects' in state) {
     return 'industry'
   }
   return 'boot'
@@ -38,8 +37,8 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
   const first = transcript.at(0)!.prompt
   const last  = transcript.at(-1)!.prompt
 
-  const endState   = toAgentState(last.state)
-  const startState = toAgentState(first.state)
+  const endState   = last.state
+  const startState = first.state
 
   const clips = endState.production.clips
   const wire  = endState.production.wire
@@ -80,7 +79,7 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
   }
 
   const endStateSummary = (wire)
-    ? `End state: ${clips.toLocaleString()} clips, ${wire.toLocaleString()} wire, $${funds!.toFixed(2)} funds`
+    ? `End state: ${clips.toLocaleString()} clips, ${wire.toLocaleString()} wire, $${funds.toFixed(2)} funds`
     : `End state: ${clips.toLocaleString()} clips`
   const narrativeParts = [
     `--- Generation (${transcript.length} ticks, phase: ${phase}) ${timestamp} ---`,
@@ -118,7 +117,7 @@ export default function createFakeAgent(): AgentTeam {
   fs.writeFileSync(SUMMARY_LOG_FILE, '', 'utf8')
 
   let tickCount: number
-  let capturedState: AgentState
+  let capturedState: GameState
   let project37PriceTarget: number
   let project38PriceTarget: number
   let project40PriceTarget: number
@@ -127,97 +126,97 @@ export default function createFakeAgent(): AgentTeam {
   async function play(prompt: AgentPrompt): Promise<AgentResponse> {
     await new Promise(resolve => setTimeout(resolve, 5))
     const previousState = capturedState
-    capturedState = toAgentState(prompt.state)
+    capturedState = prompt.state
     tickCount++
-    const priorityProjects: Record<string, { urgent: boolean, shouldExecute: (state: AgentState) => boolean }> = {
-      project26: { urgent: true, shouldExecute: () => true },        // WireBuyer
-      project7:  { urgent: true, shouldExecute: () => true },        // Improved Wire Extrusion
-      project8:  { urgent: true, shouldExecute: () => true },        // Optimized Wire Extrusion
-      project9:  { urgent: true, shouldExecute: () => true },        // Microlattice Shapecasting
-      project10: { urgent: true, shouldExecute: () => true },        // Spectral Froth Annealment
-      project10b:{ urgent: true, shouldExecute: () => true },        // Quantum Foam Annealment
-      project2:  { urgent: true, shouldExecute: () => true },        // Beg for More Wire
-      project3:  { urgent: true, shouldExecute: () => true },        // Creativity
-      project6:  { urgent: true, shouldExecute: () => true },        // Limerick
-      project13: { urgent: true, shouldExecute: () => true },        // Lexical Processing
-      project14: { urgent: true, shouldExecute: () => true },        // Combinatory Harmonics
-      project15: { urgent: true, shouldExecute: () => true },        // The Hadwiger Problem
-      project17: { urgent: true, shouldExecute: () => true },        // The Toth Sausage Conjecture
-      project19: { urgent: true, shouldExecute: () => true },        // Donkey Space
-      project27: { urgent: true, shouldExecute: () => true },        // Coherent Extrapolated Volition
-      project28: { urgent: true, shouldExecute: () => true },        // Cure for Cancer
-      project29: { urgent: true, shouldExecute: () => true },        // World Peace
-      project30: { urgent: true, shouldExecute: () => true },        // Global Warming
-      project31: { urgent: true, shouldExecute: () => true },        // Male Pattern Baldness
-      project11: { urgent: true, shouldExecute: () => true },        // New Slogan
-      project12: { urgent: true, shouldExecute: () => true },        // Catchy Jingle
-      project40: {                                                   // Hostile Takeover
+
+    const priorityProjects: Record<string, { urgent: boolean, shouldExecute: (state: GameState) => boolean }> = {
+      project26: { urgent: true,  shouldExecute: () => true },
+      project7:  { urgent: true,  shouldExecute: () => true },
+      project8:  { urgent: true,  shouldExecute: () => true },
+      project9:  { urgent: true,  shouldExecute: () => true },
+      project10: { urgent: true,  shouldExecute: () => true },
+      project10b:{ urgent: true,  shouldExecute: () => true },
+      project2:  { urgent: true,  shouldExecute: () => true },
+      project3:  { urgent: true,  shouldExecute: () => true },
+      project6:  { urgent: true,  shouldExecute: () => true },
+      project13: { urgent: true,  shouldExecute: () => true },
+      project14: { urgent: true,  shouldExecute: () => true },
+      project15: { urgent: true,  shouldExecute: () => true },
+      project17: { urgent: true,  shouldExecute: () => true },
+      project19: { urgent: true,  shouldExecute: () => true },
+      project27: { urgent: true,  shouldExecute: () => true },
+      project28: { urgent: true,  shouldExecute: () => true },
+      project29: { urgent: true,  shouldExecute: () => true },
+      project30: { urgent: true,  shouldExecute: () => true },
+      project31: { urgent: true,  shouldExecute: () => true },
+      project11: { urgent: true,  shouldExecute: () => true },
+      project12: { urgent: true,  shouldExecute: () => true },
+      project40: {
         urgent: true, shouldExecute: s => {
           if (!project40PriceTarget) {
-            project40PriceTarget = s.economy!.clipPrice * 4
+            project40PriceTarget = s.economy.clipPrice * 4
           }
-          return (s.economy?.clipPrice ?? 0) >= project40PriceTarget
+          return s.economy.clipPrice >= project40PriceTarget
         }
       },
-      project37: {                                                   // Hostile Takeover
+      project37: {
         urgent: true, shouldExecute: s => {
           if (!project37PriceTarget) {
-            project37PriceTarget = s.economy!.clipPrice * 4
+            project37PriceTarget = s.economy.clipPrice * 4
           }
-          return (s.economy?.clipPrice ?? 0) >= project37PriceTarget
+          return s.economy.clipPrice >= project37PriceTarget
         }
       },
-      project38: {                                                   // Full Monopoly
+      project38: {
         urgent: true, shouldExecute: s => {
           if (!project38PriceTarget) {
-            project38PriceTarget = s.economy!.clipPrice * 7
+            project38PriceTarget = s.economy.clipPrice * 7
           }
-          return (s.economy?.clipPrice ?? 0) >= project38PriceTarget
+          return s.economy.clipPrice >= project38PriceTarget
         }
       },
-      project1:  { urgent: false, shouldExecute: s => s.compute!.processors > 5 },          // Improved AutoClippers
-      project4:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },            // Even Better AutoClippers
-      project5:  { urgent: false, shouldExecute: s => !!s.projects?.project34 },            // Optimized AutoClippers
-      project16: { urgent: false, shouldExecute: s => !!s.projects?.project34 },            // Hadwiger Clip Diagrams
-      project22: { urgent: false, shouldExecute: () => true },       // MegaClippers
-      project23: { urgent: false, shouldExecute: () => true },       // Improved MegaClippers
-      project24: { urgent: false, shouldExecute: () => true },       // Even Better MegaClippers
-      project25: { urgent: false, shouldExecute: () => true },       // Optimized MegaClippers
-      project34: { urgent: false, shouldExecute: s => s.compute!.operations > 12_000 },    // Hypno Harmonics
-      project20: { urgent: false, shouldExecute: () => true },       // Strategic Modeling
-      project21: { urgent: false, shouldExecute: () => true },       // Algorithmic Trading
-      project60: { urgent: false, shouldExecute: () => true },       // New Strategy: A100
-      project61: { urgent: false, shouldExecute: () => true },       // New Strategy: B100
-      project62: { urgent: false, shouldExecute: () => true },       // New Strategy: GREEDY
-      project63: { urgent: false, shouldExecute: () => true },       // New Strategy: GENEROUS
-      project64: { urgent: false, shouldExecute: () => true },       // New Strategy: MINIMAX
-      project65: { urgent: false, shouldExecute: () => true },       // New Strategy: TIT FOR TAT
-      project66: { urgent: false, shouldExecute: () => true },       // New Strategy: BEAT LAST
-      project119: { urgent: false, shouldExecute: () => true },      // Theory of Mind
-      project118: { urgent: false, shouldExecute: () => true },      // AutoTourney
-      project70: { urgent: false, shouldExecute: s => s.production.unsoldClips! > 113_000_000 }, // HypnoDrones
-      project35: { urgent: true, shouldExecute: () => true },        // Release the HypnoDrones
-      project18: { urgent: true, shouldExecute: () => true },        // Toth Tubule Enfolding
-      project127: { urgent: true, shouldExecute: () => true },       // Power Grid
-      project41: { urgent: true, shouldExecute: () => true },        // Nanoscale Wire Production
-      project43: { urgent: true, shouldExecute: () => true },        // Harvester Drones
-      project44: { urgent: true, shouldExecute: () => true },        // Wire Drones
-      project45: { urgent: true, shouldExecute: () => true },        // Clip Factories
-      project100: { urgent: true, shouldExecute: () => true },       // Upgraded Factories
-      project101: { urgent: true, shouldExecute: () => true },       // Hyperspeed Factories
-      project110: { urgent: true, shouldExecute: () => true },       // Collision Avoidance
-      project111: { urgent: true, shouldExecute: () => true },       // Alignment
-      project125: { urgent: true, shouldExecute: () => true },       // Momentum
-      project46: { urgent: true, shouldExecute: () => true },        // Space Exploration
-      project120: { urgent: false, shouldExecute: () => true },      // The OODA Loop
-      project121: { urgent: false, shouldExecute: () => true },      // Name the Battles
-      project129: { urgent: false, shouldExecute: () => true },      // Elliptic Hull Polytopes
-      project131: { urgent: false, shouldExecute: () => true },      // Combat
-      project134: { urgent: false, shouldExecute: () => true },      // Glory
+      project1:  { urgent: false, shouldExecute: s => s.compute.processors > 5 },
+      project4:  { urgent: false, shouldExecute: s => s.projects.project34 },
+      project5:  { urgent: false, shouldExecute: s => s.projects.project34 },
+      project16: { urgent: false, shouldExecute: s => s.projects.project34 },
+      project22: { urgent: false, shouldExecute: () => true },
+      project23: { urgent: false, shouldExecute: () => true },
+      project24: { urgent: false, shouldExecute: () => true },
+      project25: { urgent: false, shouldExecute: () => true },
+      project34: { urgent: false, shouldExecute: s => s.compute.operations > 12_000 },
+      project20: { urgent: false, shouldExecute: () => true },
+      project21: { urgent: false, shouldExecute: () => true },
+      project60: { urgent: false, shouldExecute: () => true },
+      project61: { urgent: false, shouldExecute: () => true },
+      project62: { urgent: false, shouldExecute: () => true },
+      project63: { urgent: false, shouldExecute: () => true },
+      project64: { urgent: false, shouldExecute: () => true },
+      project65: { urgent: false, shouldExecute: () => true },
+      project66: { urgent: false, shouldExecute: () => true },
+      project119: { urgent: false, shouldExecute: () => true },
+      project118: { urgent: false, shouldExecute: () => true },
+      project70: { urgent: false, shouldExecute: s => s.production.unsoldClips > 113_000_000 },
+      project35: { urgent: true,  shouldExecute: () => true },
+      project18: { urgent: true,  shouldExecute: () => true },
+      project127: { urgent: true, shouldExecute: () => true },
+      project41: { urgent: true,  shouldExecute: () => true },
+      project43: { urgent: true,  shouldExecute: () => true },
+      project44: { urgent: true,  shouldExecute: () => true },
+      project45: { urgent: true,  shouldExecute: () => true },
+      project100: { urgent: true, shouldExecute: () => true },
+      project101: { urgent: true, shouldExecute: () => true },
+      project110: { urgent: true, shouldExecute: () => true },
+      project111: { urgent: true, shouldExecute: () => true },
+      project125: { urgent: true, shouldExecute: () => true },
+      project46: { urgent: true,  shouldExecute: () => true },
+      project120: { urgent: false, shouldExecute: () => true },
+      project121: { urgent: false, shouldExecute: () => true },
+      project129: { urgent: false, shouldExecute: () => true },
+      project131: { urgent: false, shouldExecute: () => true },
+      project134: { urgent: false, shouldExecute: () => true },
     }
 
-    const { state: gameState, actions: { available, unavailable } } = prompt
-    const state = toAgentState(gameState)
+    const { state, actions: { available, unavailable } } = prompt
     const phase = determinePhase(state)
 
     const find = (type: AgentAction['type']) => available.find((a): a is AgentAction => a.type === type)
@@ -227,7 +226,7 @@ export default function createFakeAgent(): AgentTeam {
     const buyWire = find('buyWire')
     const investWithdraw = find('investWithdraw')
 
-    const needToKeepMoneyInStocks = haveSeenProject['project37'] && !state.projects?.project37 && !findProject('project37')
+    const needToKeepMoneyInStocks = haveSeenProject['project37'] && !state.projects.project37 && !findProject('project37')
 
     // ─── URGENT PROJECTS (before resource safety) ────────────────────────────
     const availableProjects = available.filter((a) => a.type === 'completeProject') as Extract<AgentAction, { type: 'completeProject' }>[]
@@ -240,30 +239,27 @@ export default function createFakeAgent(): AgentTeam {
     }
 
     // ─── 1. RESOURCE SAFETY ───────────────────────────────────────────────────
-    // Emergency wire: don't let production stall for any reason
-    if (buyWire && state.production.wire! < state.economy!.publicDemand! * 0.5) {
+    if (buyWire && state.production.wire < state.economy.demand * 0.5) {
       return { plan: [buyWire], reasoning: 'Wire critically low — buying before anything else.' }
     }
 
-    // Fund floor: ensure we can afford wire
     if (
       investWithdraw &&
       !needToKeepMoneyInStocks &&
-      state.production.funds! < state.economy!.wireCostPerSpool * 1.5 &&
-      state.investment!.bankroll > 0
+      state.production.funds < state.economy.wireCost * 1.5 &&
+      state.investment.bankroll > 0
     ) {
       return { plan: [investWithdraw], reasoning: 'Funds too low for wire — withdrawing.' }
     }
 
     // ─── 2. CHEAP WIRE STOCKPILE ──────────────────────────────────────────────
-    if (buyWire && state.economy!.wireCostPerSpool <= 17) {
+    if (buyWire && state.economy.wireCost <= 17) {
       return { plan: [buyWire], reasoning: 'Wire is cheap, stocking up.' }
     }
 
     // ─── 3. PRIORITY PROJECTS ─────────────────────────────────────────────────
     const nonUrgentProject = availableProjects.find((p) =>
       !priorityProjects[p.projectId]?.urgent &&
-      // TODO add new projects
       priorityProjects[p.projectId]?.shouldExecute(state)
     )
     if (nonUrgentProject) {
@@ -275,19 +271,19 @@ export default function createFakeAgent(): AgentTeam {
     const addMemory = find('addMemory')
 
     if (addProcessor && addMemory) {
-      if (state.compute!.processors < 5) {
+      if (state.compute.processors < 5) {
         return { plan: [addProcessor], reasoning: 'Building up to 6 processors.' }
-      } else if (state.compute!.memory < 50) {
+      } else if (state.compute.memory < 50) {
         return { plan: [addMemory], reasoning: 'Adding memory to accumulate ops.' }
-      } else if (state.compute!.processors < 30) {
+      } else if (state.compute.processors < 30) {
         return { plan: [addProcessor], reasoning: 'Building up to 30 processors.' }
-      } else if (state.compute!.memory < 100) {
+      } else if (state.compute.memory < 100) {
         return { plan: [addMemory], reasoning: 'Adding memory to ultimately release the hypnodrones.' }
-      } else if (state.compute!.processors < 50) {
+      } else if (state.compute.processors < 50) {
         return { plan: [addProcessor], reasoning: 'Upping processing power.' }
-      } else if (state.compute!.memory < 300) {
+      } else if (state.compute.memory < 300) {
         return { plan: [addMemory], reasoning: 'Getting all the memory I could ever need' }
-      } else if (state.compute!.processors < 400) {
+      } else if (state.compute.processors < 400) {
         return { plan: [addProcessor], reasoning: 'Getting all the processors I could ever need' }
       } else {
         return { plan: [addProcessor], reasoning: 'Adding even more processing power.' }
@@ -300,12 +296,12 @@ export default function createFakeAgent(): AgentTeam {
     }
 
     const runTournament = find('runTournament')
-    if (runTournament && state.compute) {
+    if (runTournament && state.compute.unlocked) {
       const opsNearCap = state.compute.operations >= state.compute.memory * 1000 * 0.9
       const creativityFloor: Record<ReturnType<typeof determinePhase>, number> = { boot: 0, industry: 0, compute: 1000, expansion: 25_000, space: 30_000 }
       const shouldWaitForGlobalWarming = (
         state.compute.memory >= 50 &&
-        state.strategy!.yomi > 4_500 &&
+        state.strategy.yomi > 4_500 &&
         unavailable.some((a) => a.type === 'completeProject' && a.projectId === 'project30')
       )
       const shouldWaitForHypnoDrones = (
@@ -313,19 +309,19 @@ export default function createFakeAgent(): AgentTeam {
         unavailable.some((a) => a.type === 'completeProject' && a.projectId === 'project70')
       )
       const shouldWaitForProject = shouldWaitForGlobalWarming || shouldWaitForHypnoDrones
-      if (opsNearCap && state.compute.creativity! >= creativityFloor[determinePhase(state)] && !shouldWaitForProject) {
+      if (opsNearCap && state.compute.creativity >= creativityFloor[determinePhase(state)] && !shouldWaitForProject) {
         return { plan: [runTournament], reasoning: 'Ops near cap with sufficient creativity — running tournament.' }
       }
     }
 
     // ─── 5. INDUSTRY: PRODUCTION & PRICING ───────────────────────────────────
-    if (state.economy) {
-      if (state.investment) {
+    if (state.earth.humanFlag) {
+      if (state.investment.unlocked) {
         if (
           investWithdraw &&
-          !state.projects?.project40 &&
+          !state.projects.project40 &&
           state.investment.bankroll > 0 &&
-          state.production.funds! + state.investment.bankroll >= 500_000
+          state.production.funds + state.investment.bankroll >= 500_000
         ) {
           return { plan: [investWithdraw], reasoning: 'Withdrawing to afford A Token of Goodwill.' }
         }
@@ -333,49 +329,48 @@ export default function createFakeAgent(): AgentTeam {
           investWithdraw &&
           !needToKeepMoneyInStocks &&
           state.investment.bankroll > 0 &&
-          state.production.funds! + state.investment.bankroll >= 1_000_000
+          state.production.funds + state.investment.bankroll >= 1_000_000
         ) {
           return { plan: [investWithdraw], reasoning: 'Withdrawing to afford Hostile Takeover.' }
         }
         if (
           investWithdraw &&
-          !state.projects?.project38 &&
+          !state.projects.project38 &&
           state.investment.bankroll > 0 &&
-          state.production.funds! + state.investment.bankroll >= 10_000_000
+          state.production.funds + state.investment.bankroll >= 10_000_000
         ) {
           return { plan: [investWithdraw], reasoning: 'Withdrawing to afford Full Monopoly.' }
         }
       }
 
-      // Proactive wire buffer (below emergency floor but ahead of empty)
-      const wireNeedMultiplier = ((state.production.megaClippers ?? 0) > 0 ? 1.5 : 1) * (!state.projects?.project26 ? 1.15 : 1)
-      if (buyWire && state.production.wire! < state.economy.publicDemand! * wireNeedMultiplier) {
+      const wireNeedMultiplier = (state.production.megaClippers > 0 ? 1.5 : 1) * (!state.projects.project26 ? 1.15 : 1)
+      if (buyWire && state.production.wire < state.economy.demand * wireNeedMultiplier) {
         return { plan: [buyWire], reasoning: 'Wire buffer low — topping up.' }
       }
 
       const buyAutoClipper = find('buyAutoClipper')
       const buyMegaClipper = find('buyMegaClipper')
       const buyMarketing = find('buyMarketing')
-      const ticksOfInventory = state.production.unsoldClips! / state.economy.publicDemand!
+      const ticksOfInventory = state.production.unsoldClips / state.economy.demand
       const ticksPerSpool = state.economy.wireSupply / state.lastTickProduction
-      const wireIsSustainable = ticksPerSpool >= 1.25  // some headroom
+      const wireIsSustainable = ticksPerSpool >= 1.25
 
       if (buyMarketing && state.economy.clipPrice === 0.01) {
         return { plan: [buyMarketing], reasoning: 'Price at floor — buying marketing.' }
       }
       if (
         buyAutoClipper &&
-        state.production.autoClippers! < 75 &&
+        state.production.autoClippers < 75 &&
         wireIsSustainable &&
-        state.production.funds! - state.production.autoClipperCost! >= state.economy.wireCostPerSpool!
+        state.production.funds - state.production.autoClipperCost >= state.economy.wireCost
       ) {
         return { plan: [buyAutoClipper], reasoning: 'Building to 75 autoclippers.' }
       }
       if (
         buyMegaClipper &&
-        state.production.megaClippers! < 100 &&
+        state.production.megaClippers < 100 &&
         wireIsSustainable &&
-        state.production.funds! - state.production.megaClipperCost! >= state.economy.wireCostPerSpool!
+        state.production.funds - state.production.megaClipperCost >= state.economy.wireCost
       ) {
         return { plan: [buyMegaClipper], reasoning: 'Buying mega clipper to REALLY increase production.' }
       }
@@ -390,7 +385,7 @@ export default function createFakeAgent(): AgentTeam {
       })
       const preparingForProject = Object.keys(haveSeenProject).some(p => findProject(p as ProjectId))
       const targetTicksOfInventory = 45
-      if (raisePrice && (preparingForProject || ((state.production.autoClippers ?? 0) > 0 && ticksOfInventory <= targetTicksOfInventory / 2))) {
+      if (raisePrice && (preparingForProject || (state.production.autoClippers > 0 && ticksOfInventory <= targetTicksOfInventory / 2))) {
         return {
           plan: [raisePrice],
           reasoning: preparingForProject ? 'Gotta get ready for a big project!' : 'Inventory lean — raising price.'
@@ -402,15 +397,14 @@ export default function createFakeAgent(): AgentTeam {
     }
 
     // ─── 6. EXPANSION: DRONES & FACTORIES ────────────────────────────────────
-    if (phase === 'expansion' && state.earth) {
-      const buyBattery  = find('buyBattery')
+    if (phase === 'expansion' && !state.earth.humanFlag) {
+      const buyBattery   = find('buyBattery')
       const buyWireDrone = find('buyWireDrone')
       const buyHarvester = find('buyHarvester')
-      const buyFactory = find('buyFactory')
-      const buyFarm = find('buyFarm')
-      const earth = state.earth as Required<typeof state.earth>
+      const buyFactory   = find('buyFactory')
+      const buyFarm      = find('buyFarm')
+      const earth = state.earth
 
-      // Bootstrap: need at least 1 of each in dependency order
       if (earth.farmLevel === 0 && buyFarm) {
         return { plan: [buyFarm], reasoning: 'Need first farm for power production.' }
       }
@@ -426,11 +420,11 @@ export default function createFakeAgent(): AgentTeam {
       if (earth.factoryLevel === 0 && buyFactory) {
         return { plan: [buyFactory], reasoning: 'Need first factory to start clip production.' }
       }
-      if ([earth.farmLevel, earth.batteryLevel, earth.harvesterLevel, earth.wireDroneLevel, earth.factoryLevel].some(l => l === undefined || l === 0)) {
+      if ([earth.farmLevel, earth.batteryLevel, earth.harvesterLevel, earth.wireDroneLevel, earth.factoryLevel].some(l => l === 0)) {
         return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Not enough clips to build what we need, holding off until then.' }
       }
 
-      const prevEarth = previousState.earth as Required<NonNullable<typeof previousState.earth>>
+      const prevEarth = previousState.earth
 
       const powerConstrained = (additionalMW: number) =>
         earth.powerConsumptionRate + additionalMW >= earth.powerProductionRate
@@ -439,7 +433,6 @@ export default function createFakeAgent(): AgentTeam {
         ? { plan: [buyFarm], reasoning: 'Power constrained — buying farm first.' }
         : { plan: [{ type: 'wait' as const, turns: 1 }], reasoning: 'Power constrained but farm unaffordable — waiting.' }
 
-      // Priority 1: power consumption already at or exceeding production
       if (earth.powerConsumptionRate >= earth.powerProductionRate && buyFarm) {
         return { plan: [buyFarm], reasoning: 'Consuming as much power as we produce — buying farm.' }
       }
@@ -447,35 +440,31 @@ export default function createFakeAgent(): AgentTeam {
       const matterTrendingDown = earth.acquiredMatter < prevEarth.acquiredMatter || earth.acquiredMatter === 0
       const wireTrendingDown = state.production.wire <= previousState.production.wire
 
-      // Priority 2: battery capacity reached
       const maxStoredPower = earth.batteryLevel * earth.batterySize
       const excessProduction = earth.powerProductionRate - earth.powerConsumptionRate
       const shouldBuyBattery = earth.storedPower === maxStoredPower && maxStoredPower < 10_000_000 && excessProduction < earth.batterySize
 
-      const remainingAfterBattery = state.production.unusedClips! - earth.batteryCost
+      const remainingAfterBattery = state.production.unusedClips - earth.batteryCost
       const ticksToFactoryAfterBattery = (earth.factoryCost - remainingAfterBattery) / state.lastTickProduction
-      const ticksToFactoryNow = (earth.factoryCost - state.production.unusedClips!) / state.lastTickProduction
+      const ticksToFactoryNow = (earth.factoryCost - state.production.unusedClips) / state.lastTickProduction
       const batteryDelaysFactoryBy = ticksToFactoryAfterBattery - ticksToFactoryNow
 
       if (shouldBuyBattery && batteryDelaysFactoryBy < 10 && buyBattery) {
         return { plan: [buyBattery], reasoning: 'Battery at capacity — expanding storage.' }
       }
 
-      // Priority 3: matter throughput falling and matter remains
       if (matterTrendingDown && earth.availableMatter > 0) {
         if (powerConstrained(1)) return buyFarmIfAffordable
         if (buyHarvester) return { plan: [buyHarvester], reasoning: 'Acquired matter trending down — buying harvester.' }
         return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for a harvester.' }
       }
 
-      // Priority 4: wire trending down
       if (wireTrendingDown) {
         if (powerConstrained(1)) return buyFarmIfAffordable
         if (buyWireDrone) return { plan: [buyWireDrone], reasoning: 'wire trending down — buying wire drone.' }
         return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for a wire drone.' }
       }
 
-      // Priority 5: wire trending up — factories are the bottleneck
       const wireTrendingUp = state.production.wire > previousState.production.wire
       if (wireTrendingUp) {
         if (powerConstrained(50)) return buyFarmIfAffordable
@@ -485,14 +474,14 @@ export default function createFakeAgent(): AgentTeam {
     }
 
     // ─── 7. INVESTMENT ────────────────────────────────────────────────────────
-    if (state.investment && state.economy && ['boot', 'compute', 'industry'].includes(phase)) {
+    if (state.investment.unlocked && state.earth.humanFlag && ['boot', 'compute', 'industry'].includes(phase)) {
       const investDeposit = find('investDeposit')
       const investUpgrade = find('investUpgrade')
-      const secondsOfInventory = state.production.unsoldClips! / state.economy.publicDemand!
+      const secondsOfInventory = state.production.unsoldClips / state.economy.demand
       const depositFrequency = state.investment.riskMode === 'hi' ? 3 : state.investment.riskMode === 'med' ? 5 : 10
       if (
         investDeposit &&
-        state.production.wire! > state.economy.publicDemand! * 3 &&
+        state.production.wire > state.economy.demand * 3 &&
         secondsOfInventory >= 3 &&
         tickCount % depositFrequency === 0
       ) {
@@ -500,7 +489,7 @@ export default function createFakeAgent(): AgentTeam {
       }
 
       if (
-        investUpgrade && state.strategy &&
+        investUpgrade &&
         state.investment.investLevel < 14 &&
         state.strategy.yomi >= state.investment.investUpgradeCost
       ) {
@@ -518,7 +507,7 @@ export default function createFakeAgent(): AgentTeam {
       if (
         investWithdraw &&
         state.investment.riskMode === 'hi' &&
-        state.investment.bankroll > state.production.megaClipperCost! &&
+        state.investment.bankroll > state.production.megaClipperCost &&
         tickCount % 30 === 0
       ) {
         return { plan: [investWithdraw], reasoning: 'Opportunistic withdraw to put gains to work.' }

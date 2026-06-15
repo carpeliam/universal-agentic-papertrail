@@ -3,7 +3,7 @@ import { APICallError, generateText, NoObjectGeneratedError, Output, type Genera
 import { z } from 'zod'
 import { createInitialGameState } from 'paperclips-remake'
 import createAiAgent from '@/agent/vercel'
-import { getActions, toAgentState } from '@/agent-adapter'
+import { getActions } from '@/agent-adapter'
 import type { AgentAction, LLMAgentOptions, StrategicNotes, TickInteraction } from '@/types'
 import { DeepPartial } from '../helper'
 
@@ -51,7 +51,6 @@ const sampleStrategicNotes: StrategicNotes = {
 }
 
 const gameState = createInitialGameState()
-const agentState = toAgentState(gameState)
 const agentActions = getActions(gameState)
 
 function setupAiAgent(options: DeepPartial<LLMAgentOptions> = {}) {
@@ -97,7 +96,7 @@ describe('player', () => {
     }))
   })
 
-  it('returns the response as an array', async () => {
+  it('returns the agent action/reasoning response as an array', async () => {
     const { createPlayer } = setupAiAgent()
     const player = createPlayer([])
 
@@ -157,9 +156,7 @@ describe('player', () => {
       ],
     }))
     let generateTextPayload = mockGenerateText.mock.calls[0][0]
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining('# Paperclips: 0'))
 
     await player.play({ state: gameState, actions: agentActions })
 
@@ -172,9 +169,7 @@ describe('player', () => {
       ],
     }))
     generateTextPayload = mockGenerateText.mock.calls[1][0]
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining('# Paperclips: 0'))
   })
 
   it('can carry a conversation on the nth generation', async () => {
@@ -191,9 +186,7 @@ describe('player', () => {
     }))
     let generateTextPayload = mockGenerateText.mock.calls[0][0]
     expect(generateTextPayload.system).toMatchSystemModelMessage(expect.stringContaining(JSON.stringify([sampleStrategicNotes])))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining('# Paperclips: 0'))
 
     await player.play({ state: gameState, actions: agentActions })
 
@@ -206,9 +199,7 @@ describe('player', () => {
       ],
     }))
     generateTextPayload = mockGenerateText.mock.calls[1][0]
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.available)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentActions.unavailable)))
-    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
+    expect(generateTextPayload.messages![2]).toMatchModelMessage('user', expect.stringContaining('# Paperclips: 0'))
   })
 
   it('removes state/actions beyond the most recent 4 responses', async () => {
@@ -346,7 +337,7 @@ describe('summarize', () => {
       messages: [expect.toMatchModelMessage('user', expect.stringContaining(JSON.stringify([sampleStrategicNotes])))],
     }))
     const generateTextPayload = mockGenerateText.mock.calls[0][0]
-    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining(JSON.stringify(agentState)))
+    expect(generateTextPayload.messages![0]).toMatchModelMessage('user', expect.stringContaining('# Paperclips: 0'))
   })
 
   it('returns the output from generateText', async () => {

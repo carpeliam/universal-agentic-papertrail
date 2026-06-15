@@ -1,195 +1,13 @@
 import { describe, it, expect } from "vitest"
 import { createInitialGameState, type GamePhase, type GameState } from "paperclips-remake"
-import { actionDuration, getActions, toAgentState, toGameActions } from "@/agent-adapter"
-import { applyComputeState, applyExpansionState, applyGameState, applySpaceState, generateActiveBattle, withAutoClippersEnabled, withMegaClippersEnabled } from "./helper"
-
-describe('toAgentState', () => {
-  it('does not expose internal implementation details to the agent', () => {
-    const state = createInitialGameState()
-    const agentState = toAgentState(state)
-
-    expect(agentState).not.toHaveProperty('version')
-    expect(agentState).not.toHaveProperty('paused')
-    expect(agentState).not.toHaveProperty('prestige')
-    expect(agentState).not.toHaveProperty('wirePurchased')
-    expect(agentState).not.toHaveProperty('lastAction')
-    expect(agentState).not.toHaveProperty('phase')
-  })
-
-  it('only exposes unlockable subsystems when they are unlocked', () => {
-    const initialState = createInitialGameState()
-
-    const allLocked: GameState = {
-      ...initialState,
-      compute: { ...initialState.compute, unlocked: false },
-      investment: { ...initialState.investment, unlocked: false },
-      strategy: { ...initialState.strategy, unlocked: false },
-    }
-    const agentStateLocked = toAgentState(allLocked)
-    expect(agentStateLocked).not.toHaveProperty('compute')
-    expect(agentStateLocked).not.toHaveProperty('investment')
-    expect(agentStateLocked).not.toHaveProperty('strategy')
-
-    const allUnlocked: GameState = {
-      ...initialState,
-      compute: { ...initialState.compute, unlocked: true },
-      investment: { ...initialState.investment, unlocked: true },
-      strategy: { ...initialState.strategy, unlocked: true },
-    }
-    const agentStateUnlocked = toAgentState(allUnlocked)
-    expect(agentStateUnlocked).toHaveProperty('compute')
-    expect(agentStateUnlocked).toHaveProperty('investment')
-    expect(agentStateUnlocked).toHaveProperty('strategy')
-  })
-
-  it('only exposes auto clipper information once they are available', () => {
-    let agentState = toAgentState(createInitialGameState())
-    expect(agentState.production).not.toHaveProperty('autoClippers')
-    expect(agentState.production).not.toHaveProperty('autoClipperCost')
-
-    agentState = toAgentState(applyGameState(withAutoClippersEnabled()))
-    expect(agentState.production).toHaveProperty('autoClippers')
-    expect(agentState.production).toHaveProperty('autoClipperCost')
-  })
-
-  it('only exposes mega clipper information once they are available', () => {
-    let agentState = toAgentState(createInitialGameState())
-    expect(agentState.production).not.toHaveProperty('megaClippers')
-    expect(agentState.production).not.toHaveProperty('megaClipperCost')
-
-    agentState = toAgentState(applyGameState(withMegaClippersEnabled()))
-    expect(agentState.production).toHaveProperty('megaClippers')
-    expect(agentState.production).toHaveProperty('megaClipperCost')
-  })
-
-  it('only exposes auto tourney when visible', () => {
-    const initialState = createInitialGameState()
-    const stateWithStrategyUnlocked = {
-      ...initialState,
-      strategy: { ...initialState.strategy, unlocked: true },
-    }
-    expect(toAgentState(stateWithStrategyUnlocked).strategy).not.toHaveProperty('autoTourneyEnabled')
-    const stateWithAutoTourneyEnabled: GameState = {
-      ...stateWithStrategyUnlocked,
-      projects: { ...stateWithStrategyUnlocked.projects, project118: true },
-    }
-    expect(toAgentState(stateWithAutoTourneyEnabled).strategy).toHaveProperty('autoTourneyEnabled')
-  })
-
-  it('hides human-related fields after releasing the hypnodrones', () => {
-    const partialState = { production: { autoClippers: 1 }, projects: { project22: true } }
-    let agentState = toAgentState(applyComputeState(partialState))
-    expect(agentState.production).toHaveProperty('unsoldClips')
-    expect(agentState.production).not.toHaveProperty('unusedClips')
-    expect(agentState.production).toHaveProperty('funds')
-    expect(agentState.production).toHaveProperty('marketingLevel')
-    expect(agentState.production).toHaveProperty('autoClippers')
-    expect(agentState.production).toHaveProperty('autoClipperCost')
-    expect(agentState).toHaveProperty('economy')
-    expect(agentState.compute).toHaveProperty('trust')
-    expect(agentState.compute).toHaveProperty('nextTrust')
-    agentState = toAgentState(applyExpansionState(partialState))
-    expect(agentState.production).not.toHaveProperty('unsoldClips')
-    expect(agentState.production).toHaveProperty('unusedClips')
-    expect(agentState.production).not.toHaveProperty('funds')
-    expect(agentState.production).not.toHaveProperty('marketingLevel')
-    expect(agentState.production).not.toHaveProperty('autoClippers')
-    expect(agentState.production).not.toHaveProperty('autoClipperCost')
-    expect(agentState.production).not.toHaveProperty('megaClippers')
-    expect(agentState.production).not.toHaveProperty('megaClipperCost')
-    expect(agentState).not.toHaveProperty('economy')
-    expect(agentState.compute).not.toHaveProperty('trust')
-    expect(agentState.compute).not.toHaveProperty('nextTrust')
-  })
-
-  it('only exposes limited earth state during the expansion phase', () => {
-    let agentState = toAgentState(applyExpansionState())
-    expect(agentState).toHaveProperty('earth')
-    expect(agentState.earth).not.toHaveProperty('farmLevel')
-    expect(agentState.earth).not.toHaveProperty('farmCost')
-    expect(agentState.earth).not.toHaveProperty('farmRate')
-    expect(agentState.earth).not.toHaveProperty('batteryLevel')
-    expect(agentState.earth).not.toHaveProperty('batteryCost')
-    expect(agentState.earth).not.toHaveProperty('storedPower')
-    expect(agentState.earth).not.toHaveProperty('batterySize')
-    agentState = toAgentState(applyExpansionState({ earth: { tothFlag: true, powerGridFlag: true }}))
-    expect(agentState.earth).toHaveProperty('factoryDronePerformance')
-    expect(agentState.earth).toHaveProperty('farmLevel')
-    expect(agentState.earth).toHaveProperty('farmCost')
-    expect(agentState.earth).toHaveProperty('farmRate')
-    expect(agentState.earth).toHaveProperty('batteryLevel')
-    expect(agentState.earth).toHaveProperty('batteryCost')
-    expect(agentState.earth).toHaveProperty('storedPower')
-    expect(agentState.earth).toHaveProperty('batterySize')
-    expect(agentState.earth).not.toHaveProperty('availableMatter')
-    expect(agentState.earth).not.toHaveProperty('acquiredMatter')
-    expect(agentState.earth).not.toHaveProperty('processedMatter')
-    expect(agentState.earth).not.toHaveProperty('harvesterRate')
-    expect(agentState.earth).not.toHaveProperty('wireDroneRate')
-    agentState = toAgentState(applyExpansionState({ earth: { tothFlag: true, powerGridFlag: true, wireProductionFlag: true }}))
-    expect(agentState.earth).toHaveProperty('availableMatter')
-    expect(agentState.earth).toHaveProperty('acquiredMatter')
-    expect(agentState.earth).toHaveProperty('processedMatter')
-    expect(agentState.earth).toHaveProperty('harvesterRate')
-    expect(agentState.earth).toHaveProperty('wireDroneRate')
-    expect(agentState.earth).not.toHaveProperty('harvesterLevel')
-    expect(agentState.earth).not.toHaveProperty('wireDroneLevel')
-    expect(agentState.earth).not.toHaveProperty('factoryLevel')
-    expect(agentState.earth).not.toHaveProperty('factoryRate')
-    agentState = toAgentState(applyExpansionState({ earth: { tothFlag: true, powerGridFlag: true, wireProductionFlag: true, harvesterFlag: true }}))
-    expect(agentState.earth).toHaveProperty('harvesterLevel')
-    expect(agentState.earth).toHaveProperty('harvesterCost')
-    agentState = toAgentState(applyExpansionState({ earth: { tothFlag: true, powerGridFlag: true, wireProductionFlag: true, wireDroneFlag: true }}))
-    expect(agentState.earth).toHaveProperty('wireDroneLevel')
-    expect(agentState.earth).toHaveProperty('wireDroneCost')
-    agentState = toAgentState(applyExpansionState({ earth: { tothFlag: true, powerGridFlag: true, wireProductionFlag: true, factoryFlag: true }}))
-    expect(agentState.earth).toHaveProperty('factoryLevel')
-    expect(agentState.earth).toHaveProperty('factoryCost')
-    expect(agentState.earth).toHaveProperty('factoryRate')
-  })
-
-  it('only exposes space state as it becomes available', () => {
-    let agentState = toAgentState(applySpaceState())
-    expect(agentState.earth).not.toHaveProperty('factoryDronePerformance')
-    expect(agentState.space).toHaveProperty('spaceExplorationPercent')
-    expect(agentState.space).not.toHaveProperty('honor')
-    expect(agentState.space).not.toHaveProperty('maxTrustCost')
-    expect(agentState.space).not.toHaveProperty('probesLostToCombat')
-    expect(agentState.space).not.toHaveProperty('probeDistributionCombat')
-    expect(agentState.space).not.toHaveProperty('drifterCount')
-    expect(agentState.space).not.toHaveProperty('activeBattle')
-    agentState = toAgentState(applySpaceState({ projects: { project131: true } }))
-    expect(agentState.space).toHaveProperty('probeDistributionCombat')
-    agentState = toAgentState(applySpaceState({ space: { probesLostCombat: 1 } }))
-    expect(agentState.space).toHaveProperty('probesLostToCombat')
-    agentState = toAgentState(applySpaceState({ space: { battleFlag: true, activeBattle: generateActiveBattle() } }))
-    expect(agentState.space).toHaveProperty('drifterCount')
-    expect(agentState.space).toHaveProperty('activeBattle')
-    agentState = toAgentState(applySpaceState({ projects: { project121: true } }))
-    expect(agentState.space).toHaveProperty('honor')
-    expect(agentState.space).toHaveProperty('maxTrustCost')
-  })
-
-  it('only exposes projects as they become available', () => {
-    const initialState = createInitialGameState()
-    const initialAgentState = toAgentState(initialState)
-    expect(initialAgentState).not.toHaveProperty('projects')
-
-    const stateWithProjects = {
-      ...initialState,
-      projects: { ...initialState.projects, project1: true }
-    }
-    const agentStateWithProjects = toAgentState(stateWithProjects)
-    expect(agentStateWithProjects).toHaveProperty('projects')
-    expect(agentStateWithProjects.projects).toEqual({ project1: true })
-  })
-})
+import { actionDuration, getActions, toGameActions } from "@/agent-adapter"
+import { applyGameState, withComputeUnlocked, withExpansion, withHarvesting, withIndustryPhase, withInvestingUnlocked, withMegaClippersEnabled, withSpacePhase, withStrategicModeling } from "./helper"
 
 describe('getActions', () => {
   it('always includes waiting as a posibility', () => {
     const state = createInitialGameState()
     const actions = getActions(state)
-    expect(actions.available).toContainEqual({ type: 'wait', turns: '<a number between 1 and 30>' })
+    expect(actions.available).toContainEqual({ type: 'wait', turns: '<integer(1-30)>' })
   })
   it('can make a clip at game start', () => {
     const state = createInitialGameState()
@@ -207,45 +25,32 @@ describe('getActions', () => {
 
   it('shows buyAutoClipper as unavailable when funds are not enough to purchase', () => {
     const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      phase: 'industry' as GamePhase,
-      production: { ...initialGameState.production, funds: initialGameState.production.autoClipperCost - 0.01 }
-    }
+    const state = applyGameState(initialGameState, withIndustryPhase(), {
+      production: { funds: initialGameState.production.autoClipperCost - 0.01 },
+    })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('buyAutoClipper')
     expect(actions.available.map(a => a.type)).not.toContain('buyAutoClipper')
   })
   it('shows buyAutoClipper as available in industry phase when funds are sufficient', () => {
     const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      phase: 'industry' as GamePhase,
-      production: { ...initialGameState.production, funds: initialGameState.production.autoClipperCost + 0.01 }
-    }
+    const state = applyGameState(initialGameState, withIndustryPhase(), {
+      production: { funds: initialGameState.production.autoClipperCost + 0.01 },
+    })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).not.toContain('buyAutoClipper')
     expect(actions.available.map(a => a.type)).toContain('buyAutoClipper')
   })
 
   it('shows makeClip as unavailable when there is no wire', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      production: { ...initialGameState.production, wire: 0 }
-    }
+    const state = applyGameState({ production: { wire: 0 } })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('makeClip')
     expect(actions.available.map(a => a.type)).not.toContain('makeClip')
   })
 
   it('shows buyWire as unavailable when funds are insufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      phase: 'industry' as GamePhase,
-      production: { ...initialGameState.production, funds: 0 }
-    }
+    const state = applyGameState({ production: { funds: 0 } })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('buyWire')
     expect(actions.available.map(a => a.type)).not.toContain('buyWire')
@@ -253,23 +58,17 @@ describe('getActions', () => {
 
   it('shows buyWire as available when funds are sufficient', () => {
     const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      phase: 'industry' as GamePhase,
-      earth: { ...initialGameState.earth, humanFlag: true },
-      production: { ...initialGameState.production, funds: initialGameState.economy.wireCost + 0.01 },
-    }
+    const state = applyGameState(initialGameState, withIndustryPhase(), {
+      earth: { humanFlag: true },
+      production: { funds: initialGameState.economy.wireCost + 0.01 },
+    })
     const actions = getActions(state)
     expect(actions.available.map(a => a.type)).toContain('buyWire')
     expect(actions.unavailable.map(a => a.type)).not.toContain('buyWire')
   })
 
   it('does not show buyWire at all in expansion phase', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      earth: { ...initialGameState.earth, humanFlag: false },
-    }
+    const state = applyGameState(withExpansion())
     const actions = getActions(state)
     expect(actions.available.map(a => a.type)).not.toContain('buyWire')
     expect(actions.unavailable.map(a => a.type)).not.toContain('buyWire')
@@ -282,43 +81,35 @@ describe('getActions', () => {
     expect(actions.unavailable.map(a => a.type)).not.toContain('completeProject')
   })
 
+  it('shows no completeProject actions when compute is not enabled yet', () => {
+    const state = applyGameState({ production: { autoClippers: 1 } })
+    const actions = getActions(state)
+    expect(actions.available.map(a => a.type)).not.toContain('completeProject')
+    expect(actions.unavailable.map(a => a.type)).not.toContain('completeProject')
+  })
+
   it('shows completeProject as unavailable when a project is visible but not activatable', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      production: { ...initialGameState.production, autoClippers: 1 },
-      compute: { ...initialGameState.compute, operations: 0 },
-    }
+    const state = applyGameState(withComputeUnlocked(), {
+      production: { autoClippers: 1 },
+      compute: { operations: 0 },
+    })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('completeProject')
     expect(actions.available.map(a => a.type)).not.toContain('completeProject')
   })
 
   it('shows completeProject as available when a project is visible and activatable', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      production: { ...initialGameState.production, autoClippers: 1 },
-      compute: { ...initialGameState.compute, operations: 750 },
-    }
+    const state = applyGameState(withComputeUnlocked(), {
+      production: { autoClippers: 1 },
+      compute: { operations: 750 },
+    })
     const actions = getActions(state)
     expect(actions.available.map(a => a.type)).toContain('completeProject')
     expect(actions.unavailable.map(a => a.type)).not.toContain('completeProject')
   })
 
-  it('shows no addProcessor action outside of compute phase', () => {
-    const state = createInitialGameState()
-    const actions = getActions(state)
-    expect(actions.available.map(a => a.type)).not.toContain('addProcessor')
-    expect(actions.unavailable.map(a => a.type)).not.toContain('addProcessor')
-  })
-
   it('shows addProcessor/addMemory as unavailable when compute is unlocked but ops are insufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      compute: { ...initialGameState.compute, unlocked: true, operations: 0 },
-    }
+    const state = applyGameState(withComputeUnlocked(), { compute: { operations: 0 } })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('addProcessor')
     expect(actions.unavailable.map(a => a.type)).toContain('addMemory')
@@ -327,11 +118,9 @@ describe('getActions', () => {
   })
 
   it('shows addProcessor/addMemory as available when compute is unlocked and trust is sufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      compute: { ...initialGameState.compute, unlocked: true, trust: 3, processors: 1, memory: 1, swarmGifts: 0 },
-    }
+    const state = applyGameState(withComputeUnlocked(), {
+      compute: { trust: 3, processors: 1, memory: 1, swarmGifts: 0 },
+    })
     const actions = getActions(state)
     expect(actions.available.map(a => a.type)).toContain('addProcessor')
     expect(actions.available.map(a => a.type)).toContain('addMemory')
@@ -340,15 +129,7 @@ describe('getActions', () => {
   })
 
   it('shows chooseInvestmentRisk actions for each non-selected investment risk when investment is unlocked', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      investment: {
-        ...initialGameState.investment,
-        unlocked: true,
-        riskMode: 'med',
-      },
-    }
+    const state = applyGameState(withInvestingUnlocked(), { investment: { riskMode: 'med' } })
     const actions = getActions(state)
     const chooseActions = actions.available.filter(a => a.type === 'chooseInvestmentRisk')
     expect(chooseActions).toHaveLength(2)
@@ -364,16 +145,12 @@ describe('getActions', () => {
   })
 
   it('shows chooseStrategy actions for each non-selected strategy when strategy is unlocked', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
+    const state = applyGameState(withStrategicModeling(), {
       strategy: {
-        ...initialGameState.strategy,
-        unlocked: true,
         strategies: ['RANDOM', 'A100', 'B100'],
         selectedStrategy: 'RANDOM',
       }
-    }
+    })
     const actions = getActions(state)
     const chooseActions = actions.available.filter(a => a.type === 'chooseStrategy')
     expect(chooseActions).toHaveLength(3)
@@ -390,32 +167,20 @@ describe('getActions', () => {
   })
 
   it('shows runTournament as unavailable when strategy is unlocked but ops are insufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      strategy: {
-        ...initialGameState.strategy,
-        unlocked: true,
-        tourneyCost: 1000,
-      },
-      compute: { ...initialGameState.compute, operations: 0 },
-    }
+    const state = applyGameState(withStrategicModeling(), {
+      strategy: { tourneyCost: 1000 },
+      compute: { operations: 0 },
+    })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('runTournament')
     expect(actions.available.map(a => a.type)).not.toContain('runTournament')
   })
 
   it('shows runTournament as available when strategy is unlocked and ops are sufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      strategy: {
-        ...initialGameState.strategy,
-        unlocked: true,
-        tourneyCost: 1000,
-      },
-      compute: { ...initialGameState.compute, operations: 1000 },
-    }
+    const state = applyGameState(withStrategicModeling(), {
+      strategy: { tourneyCost: 1000 },
+      compute: { operations: 1000 },
+    })
     const actions = getActions(state)
     expect(actions.available.map(a => a.type)).toContain('runTournament')
     expect(actions.unavailable.map(a => a.type)).not.toContain('runTournament')
@@ -429,18 +194,7 @@ describe('getActions', () => {
   })
 
   it('shows buyMegaClipper as unavailable when project22 is completed but funds are insufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      production: {
-        ...initialGameState.production,
-        funds: 0,
-      },
-      projects: {
-        ...initialGameState.projects,
-        project22: true,
-      },
-    }
+    const state = applyGameState(withMegaClippersEnabled(), { production: { funds: 0 } })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('buyMegaClipper')
     expect(actions.available.map(a => a.type)).not.toContain('buyMegaClipper')
@@ -448,18 +202,12 @@ describe('getActions', () => {
 
   it('shows buyMegaClipper as available when project22 is completed and funds are sufficient', () => {
     const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
+    const state = applyGameState(withMegaClippersEnabled(), {
       production: {
-        ...initialGameState.production,
         autoClippers: 75,
         funds: initialGameState.production.megaClipperCost + 0.01,
       },
-      projects: {
-        ...initialGameState.projects,
-        project22: true,
-      },
-    }
+    })
     const actions = getActions(state)
     expect(actions.available.map(a => a.type)).toContain('buyMegaClipper')
     expect(actions.unavailable.map(a => a.type)).not.toContain('buyMegaClipper')
@@ -473,23 +221,16 @@ describe('getActions', () => {
   })
 
   it('does not show buyHarvester when harvesterFlag is false in expansion phase', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      earth: { ...initialGameState.earth, humanFlag: false, harvesterFlag: false },
-    }
+    const state = applyGameState(withExpansion(), { earth: { harvesterFlag: false } })
     const actions = getActions(state)
     const allActionTypes = [...actions.available, ...actions.unavailable].map(a => a.type)
     expect(allActionTypes).not.toContain('buyHarvester')
   })
 
   it('shows buyHarvester as unavailable in expansion phase when clips are insufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      earth: { ...initialGameState.earth, humanFlag: false, harvesterFlag: true },
-      production: { ...initialGameState.production, unusedClips: 0 },
-    }
+    const state = applyGameState(withHarvesting(), {
+      production: { unusedClips: 0 },
+    })
     const actions = getActions(state)
     expect(actions.unavailable.map(a => a.type)).toContain('buyHarvester')
     expect(actions.available.map(a => a.type)).not.toContain('buyHarvester')
@@ -497,17 +238,19 @@ describe('getActions', () => {
 
   it('shows buyHarvester as available in expansion phase when clips are sufficient', () => {
     const initialGameState = createInitialGameState()
-    const state: GameState = {
-      ...initialGameState,
-      earth: { ...initialGameState.earth, humanFlag: false, harvesterFlag: true },
-      production: {
-        ...initialGameState.production,
-        unusedClips: initialGameState.earth.harvesterCost + 1,
-      },
-    }
+    const state = applyGameState(withHarvesting(), {
+      production: { unusedClips: initialGameState.earth.harvesterCost + 1 },
+    })
     const actions = getActions(state)
     expect(actions.available.map(a => a.type)).toContain('buyHarvester')
     expect(actions.unavailable.map(a => a.type)).not.toContain('buyHarvester')
+  })
+
+  it('does not show buyHarvester in space phase', () => {
+    const state = applyGameState(withHarvesting(), withSpacePhase())
+    const actions = getActions(state)
+    const allActionTypes = [...actions.available, ...actions.unavailable].map(a => a.type)
+    expect(allActionTypes).not.toContain('buyHarvester')
   })
 })
 
@@ -524,27 +267,18 @@ describe('toGameActions', () => {
   })
 
   it('strips description and cost from completeProject', () => {
-    const initialState = createInitialGameState()
     const gameActions = toGameActions({
       type: 'completeProject',
       projectId: 'project1',
       title: 'Improved AutoClippers',
       description: 'Upgrade AutoClippers with a 25% boost.',
       cost: { amount: 750, unit: 'ops' },
-    }, initialState)
+    }, applyGameState(withComputeUnlocked()))
     expect(gameActions).toContainEqual({ type: 'completeProject', projectId: 'project1' })
   })
 
   it('converts chooseInvestmentRisk to the correct number of cycleInvestmentRisk actions', () => {
-    const initialState = createInitialGameState()
-    const state: GameState = {
-      ...initialState,
-      investment: {
-        ...initialState.investment,
-        unlocked: true,
-        riskMode: 'med',
-      }
-    }
+    const state = applyGameState(withInvestingUnlocked(), { investment: { riskMode: 'med' } })
     const actions = toGameActions({ type: 'chooseInvestmentRisk', mode: 'low' }, state)
     expect(actions).toEqual([
       { type: 'cycleInvestmentRisk' }, // med -> hi
@@ -553,14 +287,12 @@ describe('toGameActions', () => {
   })
 
   it('converts chooseStrategy to the correct number of cycleStrategySelection actions', () => {
-    const state: GameState = {
-      ...createInitialGameState(),
+    const state = applyGameState({
       strategy: {
-        ...createInitialGameState().strategy,
         strategies: ['RANDOM', 'A100', 'B100'],
         selectedStrategy: 'B100',
-      }
-    }
+      },
+    })
     const actions = toGameActions({ type: 'chooseStrategy', strategy: 'RANDOM' }, state)
     expect(actions).toEqual([
       { type: 'cycleStrategySelection' }, // B100 -> NONE
@@ -569,33 +301,19 @@ describe('toGameActions', () => {
   })
 
   it('increments the set price when price is raised', () => {
-    const initialState = createInitialGameState()
-    const state: GameState = {
-      ...initialState,
-      economy: {
-        ...initialState.economy,
-        clipPrice: 0.5,
-      }
-    }
+    const state = applyGameState({ economy: { clipPrice: 0.5 } })
     const actions = toGameActions({ type: 'raisePrice' }, state)
     expect(actions).toContainEqual({ type: 'setPrice', price: 0.51 })
   })
 
   it('decrements the set price when price is lowered', () => {
-    const initialState = createInitialGameState()
-    const state: GameState = {
-      ...initialState,
-      economy: {
-        ...initialState.economy,
-        clipPrice: 0.5,
-      }
-    }
+    const state = applyGameState({ economy: { clipPrice: 0.5 } })
     const actions = toGameActions({ type: 'lowerPrice' }, state)
     expect(actions).toContainEqual({ type: 'setPrice', price: 0.49 })
   })
 
   it('translates probe trust allocation targets', () => {
-    const spaceState = applySpaceState()
+    const spaceState = applyGameState(withSpacePhase())
     let actions = toGameActions({ type: 'assignProbeTrust', target: 'speed' }, spaceState)
     expect(actions).toContainEqual({ type: 'assignProbeTrust', target: 'speed' })
     actions = toGameActions({ type: 'assignProbeTrust', target: 'exploration' }, spaceState)

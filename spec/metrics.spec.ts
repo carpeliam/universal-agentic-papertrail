@@ -4,7 +4,7 @@ import { createInitialGameState } from "paperclips-remake"
 import { metrics, initMetrics, type Metrics } from "@/metrics"
 import { TickInteraction } from "@/types"
 import { events } from "@/events"
-import { applySpaceState } from "./helper"
+import { applyGameState, withSpacePhase } from "./helper"
 
 vi.mock('node:fs/promises')
 
@@ -74,7 +74,7 @@ describe('metrics', () => {
     }
     vol.fromJSON({ 'data/metrics.json': JSON.stringify(priorMetrics) })
 
-    const state = applySpaceState({
+    const state = applyGameState(withSpacePhase(), {
       elapsedMs: 269223000,
       production: {
         clips: 999,

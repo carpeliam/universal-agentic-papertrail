@@ -1,147 +1,6 @@
-import { getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type ProjectId, type InvestmentRiskMode } from "paperclips-remake"
-import type { AgentAction, AgentActions, AgentPrompt, AgentState, Description, PromptAction, ProbeTrustTarget } from "./types"
-
-function areAutoClippersVisible(state: GameState) {
-  return state.earth.humanFlag &&
-    (state.production.funds >= 5 ||
-    state.production.autoClippers > 0 ||
-    state.production.marketingLevel > 1 ||
-    state.wirePurchased > 0)
-}
-function productionStateFor(state: GameState): Pick<AgentState, 'production'> {
-  const { unsoldClips, unusedClips, funds, marketingLevel, autoClippers, autoClipperCost, megaClippers, megaClipperCost, ...productionFields } = state.production
-  return {
-    production: {
-      ...productionFields,
-      ...(state.earth.humanFlag ? { unsoldClips, funds, marketingLevel } : { unusedClips }),
-      ...(areAutoClippersVisible(state) && { autoClippers, autoClipperCost }),
-      ...(state.earth.humanFlag && state.projects.project22 && { megaClippers, megaClipperCost }),
-    }
-  }
-}
-
-function economyStateFor(state: GameState): Pick<AgentState, 'economy'> {
-  const { clipPrice, wireCost, demand, wireSupply, adCost } = state.economy
-  return (state.earth.humanFlag)
-    ? {
-      economy: {
-        clipPrice, wireSupply,
-        wireCostPerSpool: wireCost, marketingCost: adCost, publicDemand: demand,
-      }
-    }
-    : { }
-}
-
-function computeStateFor(state: GameState): Pick<AgentState, 'compute'> {
-  const { unlocked, processors, memory, operations, trust, nextTrust, creativity, creativityOn } = state.compute
-  return (unlocked)
-    ? {
-      compute: {
-        processors, memory, operations,
-        ...(state.earth.humanFlag && { trust, nextTrust }),
-        ...(creativityOn && { creativity }),
-      }
-    }
-    : {}
-}
-
-function investmentStateFor(state: GameState): Pick<AgentState, 'investment'> {
-  const { unlocked, bankroll, portTotal, secTotal, riskMode, investLevel, stocks, investUpgradeCost } = state.investment
-  return unlocked
-    ? { investment: { bankroll, portTotal, secTotal, riskMode, investLevel, stocks, investUpgradeCost } }
-    : {}
-}
-
-function strategyStateFor(state: GameState): Pick<AgentState, 'strategy'> {
-  const { unlocked, strategies, selectedStrategy, yomi, tourneyCost, tourneyLevel, autoTourneyEnabled, lastResults, lastPayoffMatrix, hMovePrev, vMovePrev } = state.strategy
-  return (unlocked)
-    ? {
-      strategy: {
-        strategies, selectedStrategy, yomi, tourneyCost, tourneyLevel, lastResults, lastPayoffMatrix, hMovePrev, vMovePrev,
-        ...(state.projects.project118 && { autoTourneyEnabled }),
-      }
-    }
-    : {}
-}
-
-function earthStateFor(state: GameState): Pick<AgentState, 'earth'> {
-  const {
-    humanFlag, spaceFlag, tothFlag, powerGridFlag, wireProductionFlag,
-    farmLevel, farmCost, farmRate,
-    batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize,
-    availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate,
-    harvesterFlag, harvesterLevel, harvesterCost,
-    wireDroneFlag, wireDroneLevel, wireDroneCost,
-    factoryFlag, factoryLevel, factoryCost, factoryRate, powMod,
-  } = state.earth
-  return humanFlag
-    ? {}
-    : {
-      earth: {
-        ...(powerGridFlag && !spaceFlag && { factoryDronePerformance: powMod }),
-        ...(tothFlag && powerGridFlag && { farmLevel, farmCost, farmRate, batteryLevel, batteryCost, powerProductionRate, powerConsumptionRate, storedPower, batterySize }),
-        ...(wireProductionFlag && { availableMatter, acquiredMatter, processedMatter, harvesterRate, wireDroneRate }),
-        ...(harvesterFlag && { harvesterLevel, harvesterCost }),
-        ...(wireDroneFlag && { wireDroneLevel, wireDroneCost }),
-        ...(factoryFlag && { factoryLevel, factoryCost, factoryRate }),
-      }
-    }
-}
-
-function spaceStateFor(state: GameState): Pick<AgentState, 'space'> {
-  const {
-    totalMatter, foundMatter, probeCount, probeLaunchLevel, probeDescendents, probeCost, probeSpeed,
-    probeNav, probeRep, probeHaz, probeFac, probeHarv, probeWire, probeCombat,
-    probeTrust, probeUsedTrust, probeTrustCost, maxTrust,
-    honor, maxTrustCost, probesLostHaz, probesLostDrift, probesLostCombat, drifterCount, activeBattle, battleFlag,
-  } = state.space
-  const spaceExplorationPercent = Math.round((foundMatter / totalMatter) * 100 * 1e12) / 1e12
-  return state.earth.spaceFlag
-    ? {
-      space: {
-        spaceExplorationPercent, probeCount, probesLaunched: probeLaunchLevel, probeDescendents, probeCost,
-        probeDistributionSpeed: probeSpeed, probeDistributionExploration: probeNav,
-        probeDistributionSelfReplication: probeRep, probeDistributionHazardRemediation: probeHaz,
-        probeDistributionFactory: probeFac, probeDistributionHarvester: probeHarv, probeDistributionWireDrone: probeWire,
-        probeTrust, probeTrustCost, probeUsedTrust, maxTrust,
-        probesLostToHazards: probesLostHaz, probesLostToValueDrift: probesLostDrift,
-        ...(probesLostCombat > 0 && { probesLostToCombat: probesLostCombat }),
-        ...(state.projects.project131 && { probeDistributionCombat: probeCombat }),
-        ...(state.projects.project121 && { honor, maxTrustCost }),
-        ...(battleFlag && { drifterCount, activeBattle: {
-          name: activeBattle!.name,
-          clipProbes: activeBattle!.leftShips,
-          drifterProbes: activeBattle!.rightShips,
-          startingClipProbes: activeBattle!.startingLeftShips,
-          startingDrifterProbes: activeBattle!.startingRightShips,
-        }}),
-      }
-    }
-    : {}
-}
-
-function projectStateFor(state: GameState): Pick<AgentState, 'projects'> {
-  const fulfilledProjects = Object.fromEntries(
-    Object.entries(state.projects).filter(([_id, completed]) => completed)
-  ) as Record<ProjectId, boolean>
-  return Object.keys(fulfilledProjects).length > 0 ? { projects: fulfilledProjects } : {}
-}
-
-export function toAgentState(state: GameState): AgentState {
-  const { elapsedMs, lastTickProduction, lastTickSales, lastTickRevenue } = state
-
-  return {
-    elapsedMs, lastTickProduction, lastTickSales, lastTickRevenue,
-    ...productionStateFor(state),
-    ...economyStateFor(state),
-    ...computeStateFor(state),
-    ...investmentStateFor(state),
-    ...strategyStateFor(state),
-    ...earthStateFor(state),
-    ...projectStateFor(state),
-    ...spaceStateFor(state),
-  }
-}
+import { getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type InvestmentRiskMode } from "paperclips-remake"
+import type { AgentAction, AgentActions, AgentPrompt, Description, PromptAction, ProbeTrustTarget } from "./types"
+import { areAutoClippersVisible, areMegaClippersVisible } from "./domain"
 
 type ActionDescriptor = {
   isVisible: (s: GameState) => boolean
@@ -170,27 +29,27 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyWire' }],
   },
   {
-    isVisible: (s) => s.earth.factoryFlag,
+    isVisible: (s) => s.earth.factoryFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.factoryCost,
     actions: () => [{ type: 'buyFactory' }],
   },
   {
-    isVisible: (s) => s.earth.harvesterFlag,
+    isVisible: (s) => s.earth.harvesterFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.harvesterCost,
     actions: () => [{ type: 'buyHarvester' }],
   },
   {
-    isVisible: (s) => s.earth.wireDroneFlag,
+    isVisible: (s) => s.earth.wireDroneFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.wireDroneCost,
     actions: () => [{ type: 'buyWireDrone' }],
   },
   {
-    isVisible: (s) => s.earth.powerGridFlag,
+    isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.farmCost,
     actions: () => [{ type: 'buyFarm' }],
   },
   {
-    isVisible: (s) => s.earth.powerGridFlag,
+    isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.batteryCost,
     actions: () => [{ type: 'buyBattery' }],
   },
@@ -228,7 +87,7 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyAutoClipper' }],
   },
   {
-    isVisible: (s) => s.projects.project22 && s.earth.humanFlag,
+    isVisible: areMegaClippersVisible,
     canActivate: (s) => s.production.funds >= s.production.megaClipperCost,
     actions: () => [{ type: 'buyMegaClipper' }],
   },
@@ -283,7 +142,12 @@ function getActionDescriptors(state: GameState): ActionDescriptor[] {
     }
   })
 
-  return [...ACTION_REGISTRY, ...projectDescriptors]
+  return [
+    ...ACTION_REGISTRY,
+    ...projectDescriptors.map(d => (
+      { ...d, isVisible() { return state.compute.unlocked && d.isVisible() } }
+    ))
+  ]
 }
 
 function description(text: string) {
@@ -292,7 +156,7 @@ function description(text: string) {
 export function getActions(state: GameState): AgentActions {
   const descriptors = getActionDescriptors(state).filter(d => d.isVisible(state))
   return {
-    available: [{ type: 'wait', turns: description('a number between 1 and 30') }, ...descriptors.filter(d => d.canActivate(state)).flatMap(d => d.actions(state))],
+    available: [{ type: 'wait', turns: description('integer(1-30)') }, ...descriptors.filter(d => d.canActivate(state)).flatMap(d => d.actions(state))],
     unavailable: descriptors.filter(d => !d.canActivate(state)).flatMap(d => d.actions(state)),
   }
 }

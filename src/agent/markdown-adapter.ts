@@ -1,4 +1,4 @@
-import { getMaxOps, type GameState } from 'paperclips-remake'
+import { getDroneStatus, getMaxOps, getTotalDroneCount, totalSecondsUntilSwarmGift, type GameState } from 'paperclips-remake'
 import { areAutoClippersVisible, areMegaClippersVisible, isCombatEnabled } from '@/domain'
 import type { AgentAction, AgentActions, AgentPrompt, Cost, PromptAction } from '../types'
 
@@ -28,6 +28,8 @@ export function displayPrompt(prompt: AgentPrompt): string {
     ${combat(prompt)}
 
     ${strategy(prompt)}
+
+    ${swarmComputing(prompt)}
 
     ${projects(prompt)}
 
@@ -99,6 +101,7 @@ function compute({ state, actions }: AgentPrompt) {
       `Trust: ${numeric(trust)} (${breakdown})`,
       `Next Trust at: ${numeric(compute.nextTrust)} clips`,
     ]}
+    ${compute.swarmFlag && `Swarm gifts: ${numeric(compute.swarmGifts)}`}
 
     Memory: ${numeric(memory)}
     Operations: ${numeric(compute.operations)} / ${numeric(getMaxOps(state))}
@@ -269,6 +272,25 @@ function combat({ state }: AgentPrompt) {
     Enemy drifter probes: ${numeric(activeBattle.rightShips)} / ${numeric(activeBattle.startingRightShips)}`
 }
 
+function swarmComputing({ state, actions }: AgentPrompt) {
+  const { compute } = state
+  if (!compute.swarmFlag) return
+
+  const timeUntilSwarmGift = totalSecondsUntilSwarmGift(state)
+  return md`\
+    ## Swarm Computing
+
+    Drone count: ${numeric(getTotalDroneCount(state))}
+    Swarm status: ${getDroneStatus(state)}
+    Work/Think balance: ${numeric(compute.swarmComputingBalance)} (0=all work, 100=all think)
+    ${(timeUntilSwarmGift !== null) && `Next gift in: ${clock(timeUntilSwarmGift)}`}
+
+    ${actionsFor(actions, 'setSwarmComputingBalance', {
+      entertainSwarm: { amount: compute.entertainCost, unit: 'creativity' },
+      synchronizeSwarm: { amount: compute.synchCost, unit: 'yomi' },
+    })}`
+}
+
 function projects({ state, actions }: AgentPrompt) {
   const availableProjects = actions.available.filter(a => a.type === 'completeProject')
   const unavailableProjects = actions.unavailable.filter(a => a.type === 'completeProject')
@@ -295,6 +317,7 @@ function currency(n: number, { showCents } = { showCents: true }) {
 }
 
 function clock(ms: number) {
+  if (ms === Infinity) return String(ms)
   const totalSeconds = Math.floor(ms / 1000)
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)

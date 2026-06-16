@@ -43,6 +43,14 @@ export function withCreativity(): DeepPartial<GameState> {
   })
 }
 
+export function withSwarmComputing(): DeepPartial<GameState> {
+  return patch(withComputeUnlocked(), {
+    compute: { swarmFlag: true },
+    earth: { powMod: 1 },
+    projects: { project126: true },
+  })
+}
+
 export function withInvestingUnlocked(): DeepPartial<GameState> {
   return {
     investment: { unlocked: true },

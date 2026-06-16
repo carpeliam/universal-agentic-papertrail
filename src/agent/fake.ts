@@ -203,12 +203,14 @@ export default function createFakeAgent(): AgentTeam {
       project43: { urgent: true,  shouldExecute: () => true },
       project44: { urgent: true,  shouldExecute: () => true },
       project45: { urgent: true,  shouldExecute: () => true },
+      project126: { urgent: true, shouldExecute: () => true },
       project100: { urgent: true, shouldExecute: () => true },
       project101: { urgent: true, shouldExecute: () => true },
       project110: { urgent: true, shouldExecute: () => true },
       project111: { urgent: true, shouldExecute: () => true },
       project125: { urgent: true, shouldExecute: () => true },
       project46: { urgent: true,  shouldExecute: () => true },
+      project130: { urgent: true, shouldExecute: () => true },
       project120: { urgent: false, shouldExecute: () => true },
       project121: { urgent: false, shouldExecute: () => true },
       project129: { urgent: false, shouldExecute: () => true },
@@ -403,6 +405,7 @@ export default function createFakeAgent(): AgentTeam {
       const buyHarvester = find('buyHarvester')
       const buyFactory   = find('buyFactory')
       const buyFarm      = find('buyFarm')
+      const setSwarmComputingBalance = find('setSwarmComputingBalance') as Extract<PromptAction, { type: 'setSwarmComputingBalance' }>
       const earth = state.earth
 
       if (earth.farmLevel === 0 && buyFarm) {
@@ -453,6 +456,21 @@ export default function createFakeAgent(): AgentTeam {
         return { plan: [buyBattery], reasoning: 'Battery at capacity — expanding storage.' }
       }
 
+      // you can lead a drone to wire but you can't make it think
+      if (setSwarmComputingBalance) {
+        if (state.compute.processors >= 400) {
+          if (state.compute.swarmComputingBalance !== 1) {
+            return { plan: [{ ...setSwarmComputingBalance, workThinkBalance: 1 }], reasoning: 'We done almost too much thinking' }
+          }
+        } else if (state.compute.processors >= 275) {
+          if (state.compute.swarmComputingBalance !== 5) {
+            return { plan: [{ ...setSwarmComputingBalance, workThinkBalance: 5 }], reasoning: 'We done enough thinking' }
+          }
+        } else if (state.compute.swarmComputingBalance !== 90) {
+          return { plan: [{...setSwarmComputingBalance, workThinkBalance: 90}], reasoning: 'Getting those drones thinking hard' }
+        }
+      }
+
       if (matterTrendingDown && earth.availableMatter > 0) {
         if (powerConstrained(1)) return buyFarmIfAffordable
         if (buyHarvester) return { plan: [buyHarvester], reasoning: 'Acquired matter trending down — buying harvester.' }
@@ -461,8 +479,12 @@ export default function createFakeAgent(): AgentTeam {
 
       if (wireTrendingDown) {
         if (powerConstrained(1)) return buyFarmIfAffordable
-        if (buyWireDrone) return { plan: [buyWireDrone], reasoning: 'wire trending down — buying wire drone.' }
-        return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for a wire drone.' }
+        if (state.projects.project126 && earth.wireDroneLevel / earth.harvesterLevel > 1.49) {
+          if (buyHarvester) return { plan: [buyHarvester], reasoning: 'Need more harvesters to stay organized' }
+        } else {
+          if (buyWireDrone) return { plan: [buyWireDrone], reasoning: 'wire trending down — buying wire drone.' }
+          return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for a wire drone.' }
+        }
       }
 
       const wireTrendingUp = state.production.wire > previousState.production.wire
@@ -470,6 +492,11 @@ export default function createFakeAgent(): AgentTeam {
         if (powerConstrained(50)) return buyFarmIfAffordable
         if (buyFactory) return { plan: [buyFactory], reasoning: 'wire accumulating — buying factory.' }
         return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Saving up for factory.' }
+      }
+
+      const entertainSwarm = find('entertainSwarm')
+      if (entertainSwarm) {
+        return { plan: [entertainSwarm], reasoning: 'Swarm is waiting to be entertained.' }
       }
     }
 
@@ -519,7 +546,7 @@ export default function createFakeAgent(): AgentTeam {
       return { plan: [makeClip], reasoning: 'Making clips is how we win! ...Right?' }
     }
 
-    const fallback = available.find((a): a is AgentAction => !['wait'].includes(a.type))
+    const fallback = available.find((a): a is AgentAction => !['wait', 'setSwarmComputingBalance'].includes(a.type))
     if (fallback) {
       return { plan: [fallback], reasoning: `Falling back to ${fallback.type}.` }
     }

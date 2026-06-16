@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import { createInitialGameState, type GameState } from "paperclips-remake"
 import { createAgentPrompt } from "@/agent-adapter"
 import { displayPrompt } from "@/agent/markdown-adapter"
-import { applyGameState, withAutoClippersEnabled, withFactoryCapability, withHarvesting, withMegaClippersEnabled, withFullMonopolyVisible, withPowerGrid, withStrategicModeling, withWireDroneCapability, withWireProduction, withComputeUnlocked, withExpansion, withSpacePhase, withInvestingUnlocked, withHypnoDronesAvailable, withCreativity, withCombat, withBattle, type DeepPartial } from "../helper"
+import { applyGameState, withAutoClippersEnabled, withFactoryCapability, withHarvesting, withMegaClippersEnabled, withFullMonopolyVisible, withPowerGrid, withStrategicModeling, withWireDroneCapability, withWireProduction, withComputeUnlocked, withExpansion, withSpacePhase, withInvestingUnlocked, withHypnoDronesAvailable, withCreativity, withCombat, withBattle, withSwarmComputing, type DeepPartial } from "../helper"
 
 describe('displayPrompt', () => {
   it('always displays paperclip count as h1', () => {
@@ -294,8 +294,8 @@ describe('displayPrompt', () => {
       expect(prompt).toContain(' buyBattery [cost: 2,568,937,919 clips]')
     })
 
-    it.skip('displays swarm gifts in Computational Resources', () => {
-      const prompt = displayPromptWithState(withExpansion(), {
+    it('displays swarm gifts in Computational Resources', () => {
+      const prompt = displayPromptWithState(withExpansion(), withSwarmComputing(), {
         compute: { swarmGifts: 17 },
       })
 
@@ -379,8 +379,8 @@ describe('displayPrompt', () => {
       expect(displayPrompt(createAgentPrompt(state))).toContain('Lost in combat: 1,499,362')
     })
 
-    it.skip('displays swarm gifts in Computational Resources', () => {
-      const prompt = displayPromptWithState(withSpacePhase(), {
+    it('displays swarm gifts in Computational Resources', () => {
+      const prompt = displayPromptWithState(withSpacePhase(), withSwarmComputing(), {
         compute: { swarmGifts: 17 },
       })
 
@@ -445,6 +445,43 @@ describe('displayPrompt', () => {
       expect(prompt).toContain('**Active Battle: Drifter Attack 2536264**')
       expect(prompt).toContain('Our probes: 32 / 34')
       expect(prompt).toContain('Enemy drifter probes: 34 / 34')
+    })
+  })
+
+  describe('Swarm Computing', () => {
+    it('displays Swarm Computing panel on unlock', () => {
+      const prompt = displayPromptWithState(withSwarmComputing(), {
+        compute: {
+          giftBits: 70068.81406939572,
+          giftPeriod: 125000,
+          swarmComputingBalance: 23,
+        },
+        earth: {
+          harvesterLevel: 8.166e25,
+          wireDroneLevel: 1.3214e26,
+        },
+      })
+
+      expect(prompt).toContain('## Swarm Computing')
+      expect(prompt).toContain('Drone count: 213,800,000,000,000,000,000,000,000')
+      expect(prompt).toContain('Swarm status: Active')
+      expect(prompt).toContain('Work/Think balance: 23 (0=all work, 100=all think)')
+      expect(prompt).toMatch(/Next gift in: (?:\d+:\d\d:\d\d|\d{1,2}:\d\d)\b/)
+      expect(prompt).toContain(' setSwarmComputingBalance')
+    })
+
+    it('displays Infinity on the clock when set to all work', () => {
+      const prompt = displayPromptWithState(withSwarmComputing(), {
+        compute: {
+          swarmComputingBalance: 0,
+        },
+        earth: {
+          harvesterLevel: 8.166e25,
+          wireDroneLevel: 1.3214e26,
+        },
+      })
+
+      expect(prompt).toContain('Next gift in: Infinity\n')
     })
   })
 

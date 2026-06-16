@@ -29,6 +29,21 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyWire' }],
   },
   {
+    isVisible: (s) => !!s.compute.swarmFlag,
+    canActivate: () => true,
+    actions: () => [{ type: 'setSwarmComputingBalance', workThinkBalance: description('integer(0-100)') }]
+  },
+  {
+    isVisible: (s) => !!s.compute.boredomFlag,
+    canActivate: (s) => s.compute.creativity >= s.compute.entertainCost,
+    actions: () => [{ type: 'entertainSwarm' }]
+  },
+  {
+    isVisible: (s) => !!s.compute.disorgFlag,
+    canActivate: (s) => s.strategy.yomi >= s.compute.synchCost,
+    actions: () => [{ type: 'synchronizeSwarm' }]
+  },
+  {
     isVisible: (s) => s.earth.factoryFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.factoryCost,
     actions: () => [{ type: 'buyFactory' }],

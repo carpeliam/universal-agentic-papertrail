@@ -53,13 +53,13 @@ describe('createRunner', () => {
   it('asks the agent to rewrite notes at the end of the generation', async () => {
     const initialState = createInitialGameState()
     const fakePlay = vi.fn<Player['play']>().mockResolvedValue({ plan: [{ type: 'makeClip' }], reasoning: '' })
-    const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
+    const fakeNotesAgent = vi.fn<NotesAgent>().mockResolvedValue({ truths: [], openQuestions: [], corrections: [], situation: 'win plz' })
     const fakeDispatch = vi.fn().mockImplementation((state, action) => Promise.resolve(reduceGameState(state, action)))
 
     const runGeneration = createRunner(createPlayer(fakePlay), fakeNotesAgent, fakeDispatch)
     const result = await runGeneration(initialState, [])
 
-    expect(result.notes).toEqual({ importantUnlocks: [], surprisesAndUpdates: [], watchouts: [], strategicNarrative: 'win plz' })
+    expect(result.notes).toEqual({ truths: [], openQuestions: [], corrections: [], situation: 'win plz' })
     expect(fakeNotesAgent).toHaveBeenCalledWith(
       [],
       expect.arrayContaining([

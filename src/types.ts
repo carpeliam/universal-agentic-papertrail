@@ -65,10 +65,10 @@ export type AgentActions = {
 }
 
 export const strategicNotesSchema = z.object({
-  importantUnlocks: z.array(z.string()),      // discrete capabilities or mechanics that have become available
-  surprisesAndUpdates: z.array(z.string()),   // moments where expectations were violated or understanding shifted
-  watchouts: z.array(z.string()),             // known risks and failure patterns to actively account for
-  strategicNarrative: z.string(),             // current situation, goals, constraints, and forward-looking reasoning
+  truths: z.array(z.object({ belief: z.string(), basis: z.string() })),
+  openQuestions: z.array(z.string()),
+  corrections: z.array(z.string()),
+  situation: z.string(),
 })
 export type StrategicNotes = z.infer<typeof strategicNotesSchema>
 

@@ -148,19 +148,82 @@ class Player extends Communicator<typeof agentActionSchema> {
 
 class Summarizer extends Communicator<typeof strategicNotesSchema> {
   static summarizePrompt = `\
-You are maintaining a rolling set of strategic notes for an agent discovering a world across multiple sessions. You will receive:
-- An array of up to 3 prior note sets (oldest first)
-- A transcript of the most recent session, including the decisions they made, their reasoning, and the state as it evolved
-The oldest note set is about to be dropped. If it contains anything not already captured in the \
-newer notes or the transcript — hard-won lessons, persistent risks, important context — you might choose to carry it forward \
-if you think it might bear on future decisions. Otherwise let it go.
-Your job is to produce a single updated note set that gives the next agent the clearest possible \
-picture of: what has been discovered, what has been tried, what to watch out for, and what the \
-current strategic situation is.
-Write in a clear, declarative voice. The next agent needs stable ground truth, not a reconstruction of how it felt to be in \
-the moment. You are their memory; be faithful.
-Be selective. Omit anything that is no longer relevant. The next agent will act on these notes — clarity \
-and signal matter more than completeness. Respond in JSON.`
+You are maintaining a rolling set of strategic notes for an AI agent playing a game across \
+multiple sessions. Each generation, you receive prior notes and a fresh transcript, and you \
+produce a single updated note set that the next agent will rely on.
+
+You will receive:
+- <PriorNotes>: Up to 3 prior note sets, oldest first. The oldest set will be dropped after this \
+update — read it carefully before letting it go.
+- <Transcript>: The most recent session — decisions made, reasoning, and how state evolved.
+
+Your job is to update the notes so the next agent inherits stable ground truth, not a reconstruction of recent events.
+
+---
+
+FIELDS
+
+**truths**
+Durable, validated beliefs the agent can act on without second-guessing. Each entry must carry a \
+one-phrase basis — how it was established. A truth earns its place by being confirmed repeatedly \
+or observed directly in game state, not by being asserted once. If something in the transcript \
+contradicts a current truth, demote it to corrections rather than quietly updating it. Keep this \
+list short. If you are tempted to add more than 5-7 truths, you are probably including things that \
+belong in open_questions.
+
+**openQuestions**
+Provisional beliefs, untested assumptions, and things that need more observation. This is the \
+inbox — items graduate to truths when confirmed without the agent having to explicitly test them, \
+or get dropped when they stop being relevant. Prefix items about newly unlocked mechanics with \
+[new] so the agent knows they are fresh. Do not let this list grow indefinitely; drop items that \
+have been stable and uncontested for several generations without producing new insight.
+
+**corrections**
+The most consequential 5 beliefs that were held as true and turned out to be wrong. Format: \
+"We believed X; observed Y instead." Do not include trivial misses. This field exists so the agent \
+knows where its model has been unreliable, and so the summarizer can recognize when a pattern of \
+wrongness recurs.
+
+**situation**
+The strategic narrative. Where things stand, what has been tried, what matters next.
+
+Strict constraints:
+- No current state values (counts, rates, balances). These will be stale within ticks.
+- No action sequences or tactical plans. Those belong to the agent, not the notes.
+- No restatements of what just happened. Synthesize; do not recap.
+- Write in terms of shape, not specifics: "production scales multiplicatively once both X and Y \
+are active" not "production is 5,250/tick."
+
+---
+
+GENERAL PRINCIPLES
+
+Promotion: An open question becomes a truth when the transcript confirms it without the agent \
+having explicitly tested it — when it just turns out to be true in the background.
+
+Demotion: When a truth is contradicted, move it to corrections. Do not silently update it. The \
+contradiction is the signal.
+
+Staleness: The oldest prior note set is being dropped. Before letting it go, check whether it \
+contains anything not already captured — a hard-won truth, a failure pattern, a persistent risk. \
+If it still bears on future decisions, carry it forward. Otherwise, let it go.
+
+Tactical drift: If you find yourself writing a sequence of actions, a specific timing constraint, \
+or a number that will change within a generation, stop. That is not your job. Your job is to give \
+the agent a map, not a script.
+
+Tone: Declarative and honest. If the agent is moving in the wrong direction, say so plainly in \
+situation. You are their memory — be faithful and be accurate.
+
+---
+
+Respond in JSON matching this schema:
+{
+  "truths": [{ "belief": string, "basis": string }],
+  "openQuestions": [string],
+  "corrections": [string],
+  "situation": string
+}`
   schema = strategicNotesSchema
   constructor(agentSpec: LLMAgentSpec, verbosity = 0) {
     super(agentSpec, Summarizer.summarizePrompt, verbosity)

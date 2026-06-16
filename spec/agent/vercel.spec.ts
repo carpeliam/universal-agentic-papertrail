@@ -44,10 +44,10 @@ const mockGenerateText = vi.mocked(generateText)
 
 const sampleAgentAction: AgentAction = { type: 'makeClip' }
 const sampleStrategicNotes: StrategicNotes = {
-  importantUnlocks: [],
-  surprisesAndUpdates: [],
-  watchouts: [],
-  strategicNarrative: 'Early game, exploring.',
+  truths: [],
+  openQuestions: [],
+  corrections: [],
+  situation: 'Early game, exploring.',
 }
 
 const gameState = createInitialGameState()

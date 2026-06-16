@@ -61,40 +61,49 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
   const startActions = new Set(first?.actions.available.map(a => a.type) ?? [])
   const endActions   = last?.actions.available.map(a => a.type) ?? []
   const newUnlocks   = endActions.filter(a => !startActions.has(a))
-  const importantUnlocks = Array.from(new Set([...(priorNotes.at(-1)?.importantUnlocks ?? []), ...newUnlocks]))
 
-  const surprisesAndUpdates: string[] = []
-  const startPhase = determinePhase(startState)
-  if (startPhase !== phase) {
-    surprisesAndUpdates.push(`Phase transition: ${startPhase} → ${phase}`)
-  }
-
-  const watchouts: string[] = []
+  // truths: things we observed to be concretely true this generation
+  const truths: StrategicNotes['truths'] = []
+  const endStateSummary = wire > 0
+    ? `${clips.toLocaleString()} clips, ${wire.toLocaleString()} wire, $${funds.toFixed(2)} funds`
+    : `${clips.toLocaleString()} clips`
+  truths.push({ belief: `Phase is ${phase}`, basis: `Derived from end state` })
+  truths.push({ belief: `End state: ${endStateSummary}`, basis: `Last tick state` })
   if (wire === 0) {
-    watchouts.push('Wire depleted — production will stall')
+    truths.push({ belief: 'Wire is depleted', basis: 'wire === 0 at end of generation' })
   }
   const startClips = startState.production.clips
   if (clips <= startClips && clips > 0) {
-    watchouts.push('Clip production stalled — no growth this generation')
+    truths.push({ belief: 'Clip production stalled this generation', basis: 'clips did not increase from start to end' })
+  }
+  for (const unlock of newUnlocks) {
+    truths.push({ belief: `${unlock} became available`, basis: 'action was absent at start, present at end of generation' })
   }
 
-  const endStateSummary = (wire)
-    ? `End state: ${clips.toLocaleString()} clips, ${wire.toLocaleString()} wire, $${funds.toFixed(2)} funds`
-    : `End state: ${clips.toLocaleString()} clips`
-  const narrativeParts = [
+  const priorTruths = priorNotes.at(-1)?.truths ?? []
+  const corrections: string[] = []
+  for (const { belief } of priorTruths) {
+    if (belief === 'Wire is depleted' && wire > 0) {
+      corrections.push('Wire was previously depleted but has since been replenished')
+    }
+    if (belief === 'Clip production stalled this generation' && clips > startClips) {
+      corrections.push('Clip production was stalled last generation but resumed this generation')
+    }
+  }
+
+  const situationParts = [
     `--- Generation (${transcript.length} ticks, phase: ${phase}) ${timestamp} ---`,
-    endStateSummary,
+    `End state: ${endStateSummary}`,
     `Actions taken:\n${actionSummary}`,
   ]
-  if (newUnlocks.length)          narrativeParts.push(`New unlocks: ${newUnlocks.join(', ')}`)
-  if (watchouts.length)           narrativeParts.push(`Watchouts: ${watchouts.join(' | ')}`)
-  if (surprisesAndUpdates.length) narrativeParts.push(`Surprises: ${surprisesAndUpdates.join(' | ')}`)
+  if (newUnlocks.length)    situationParts.push(`New unlocks: ${newUnlocks.join(', ')}`)
+  if (corrections.length)   situationParts.push(`Changes: ${corrections.join(' | ')}`)
 
-  const strategicNarrative = narrativeParts.join('\n')
+  const situation = situationParts.join('\n')
 
   console.clear()
   readline.cursorTo(process.stdout, 0, 0)
-  console.log(strategicNarrative)
+  console.log(situation)
 
   writeLogSummary({
     timestamp,
@@ -106,10 +115,10 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
   })
 
   return {
-    importantUnlocks,
-    surprisesAndUpdates,
-    watchouts,
-    strategicNarrative,
+    truths,
+    openQuestions: [],
+    corrections,
+    situation,
   }
 }
 

@@ -284,6 +284,11 @@ describe('displayPrompt', () => {
             factoryCost: 100000000,
             farmCost: 212029890.04061982,
             batteryCost: 2568937919.375704,
+            harvesterBill: 3673706209900.7617,
+            wireDroneBill: 16855372847154.06,
+            factoryBill: 586100000000,
+            farmBill: 269378317334.24463,
+            batteryBill: 1000000,
           },
         },
       )
@@ -292,6 +297,11 @@ describe('displayPrompt', () => {
       expect(prompt).toContain(' buyFactory [cost: 100,000,000 clips]')
       expect(prompt).toContain(' buyFarm [cost: 212,029,890 clips]')
       expect(prompt).toContain(' buyBattery [cost: 2,568,937,919 clips]')
+      expect(prompt).toContain(' disassembleHarvesters [refund: 3,673,706,209,901 clips]')
+      expect(prompt).toContain(' disassembleWireDrones [refund: 16,855,372,847,154 clips]')
+      expect(prompt).toContain(' disassembleFactories [refund: 586,100,000,000 clips]')
+      expect(prompt).toContain(' disassembleFarms [refund: 269,378,317,334 clips]')
+      expect(prompt).toContain(' disassembleBatteries [refund: 1,000,000 clips]')
     })
 
     it('displays swarm gifts in Computational Resources', () => {

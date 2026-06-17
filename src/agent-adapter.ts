@@ -54,14 +54,29 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyFactory' }],
   },
   {
+    isVisible: (s) => s.earth.factoryFlag && !s.earth.spaceFlag,
+    canActivate: (s) => s.earth.factoryLevel > 0,
+    actions: () => [{ type: 'disassembleFactories' }],
+  },
+  {
     isVisible: (s) => s.earth.harvesterFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.harvesterCost,
     actions: () => [{ type: 'buyHarvester' }],
   },
   {
+    isVisible: (s) => s.earth.harvesterFlag && !s.earth.spaceFlag,
+    canActivate: (s) => s.earth.harvesterLevel > 0,
+    actions: () => [{ type: 'disassembleHarvesters' }],
+  },
+  {
     isVisible: (s) => s.earth.wireDroneFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.wireDroneCost,
     actions: () => [{ type: 'buyWireDrone' }],
+  },
+  {
+    isVisible: (s) => s.earth.wireDroneFlag && !s.earth.spaceFlag,
+    canActivate: (s) => s.earth.wireDroneLevel > 0,
+    actions: () => [{ type: 'disassembleWireDrones' }],
   },
   {
     isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
@@ -70,8 +85,18 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
   },
   {
     isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
+    canActivate: (s) => s.earth.farmLevel > 0,
+    actions: () => [{ type: 'disassembleFarms' }],
+  },
+  {
+    isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.production.unusedClips >= s.earth.batteryCost,
     actions: () => [{ type: 'buyBattery' }],
+  },
+  {
+    isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
+    canActivate: (s) => s.earth.batteryLevel > 0,
+    actions: () => [{ type: 'disassembleBatteries' }],
   },
   {
     isVisible: (s) => s.earth.spaceFlag,
@@ -245,6 +270,16 @@ export function toGameActions(action: AgentAction, state: GameState): GameAction
       const cycles = (targetIndex - currentIndex + strategyOptions.length) % strategyOptions.length
       return Array(cycles).fill({ type: 'cycleStrategySelection' })
     }
+    case 'disassembleHarvesters':
+      return [{ type: 'rebootHarvesters' }]
+    case 'disassembleWireDrones':
+      return [{ type: 'rebootWireDrones' }]
+    case 'disassembleFactories':
+      return [{ type: 'rebootFactories' }]
+    case 'disassembleFarms':
+      return [{ type: 'rebootFarms' }]
+    case 'disassembleBatteries':
+      return [{ type: 'rebootBatteries' }]
     case 'allocateProbeTrust': {
       return [{ type: 'allocateProbeTrust', target: gameStateProbeTrust[action.target] }]
     }

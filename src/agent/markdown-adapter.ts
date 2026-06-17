@@ -3,7 +3,8 @@ import { areAutoClippersVisible, areMegaClippersVisible, isCombatEnabled } from 
 import type { AgentAction, AgentActions, AgentPrompt, Cost, PromptAction } from '../types'
 
 type ActionType = AgentAction['type']
-type ActionTypeData = ActionType | Partial<Record<ActionType, Cost>>
+type ActionEffect = { cost: Cost } | { refund: Cost }
+type ActionTypeData = ActionType | Partial<Record<ActionType, ActionEffect>>
 
 export function displayPrompt(prompt: AgentPrompt): string {
   return md`\
@@ -56,7 +57,7 @@ function business({ state, actions }: AgentPrompt) {
     Public Demand: ${numeric(economy.demand * 10)}%
 
     ${actionsFor(actions, 'raisePrice', 'lowerPrice', {
-      buyMarketing: { amount: economy.adCost, unit: 'dollars' },
+      buyMarketing: { cost: { amount: economy.adCost, unit: 'dollars' } },
     })}`
 }
 
@@ -78,10 +79,11 @@ function manufacturing({ state, actions }: AgentPrompt) {
     ${areMegaClippersVisible(state) && `MegaClippers: ${numeric(production.megaClippers)}`}
 
     ${actionsFor(actions, {
-      buyAutoClipper: { amount: production.autoClipperCost, unit: 'dollars' },
-      buyMegaClipper: { amount: production.megaClipperCost, unit: 'dollars' },
-      buyWire: { amount: economy.wireCost, unit: 'dollars' },
-      buyFactory: { amount: earth.factoryCost, unit: 'clips' },
+      buyAutoClipper: { cost: { amount: production.autoClipperCost, unit: 'dollars' } },
+      buyMegaClipper: { cost: { amount: production.megaClipperCost, unit: 'dollars' } },
+      buyWire: { cost: { amount: economy.wireCost, unit: 'dollars' } },
+      buyFactory: { cost: { amount: earth.factoryCost, unit: 'clips' } },
+      disassembleFactories: { refund: { amount: earth.factoryBill, unit: 'clips' } },
     })}`
 }
 
@@ -167,7 +169,7 @@ function investments({ state, actions }: AgentPrompt) {
     Risk: ${riskMode[investment.riskMode]}
 
     ${actionsFor(actions, 'investDeposit', 'investWithdraw', 'chooseInvestmentRisk', {
-      investUpgrade: { amount: investment.investUpgradeCost, unit: 'yomi' },
+      investUpgrade: { cost: { amount: investment.investUpgradeCost, unit: 'yomi' } },
     })}`
 }
 
@@ -177,7 +179,7 @@ function strategy({ state, actions }: AgentPrompt) {
 
   const { lastPayoffMatrix } = strategy
 
-  const actionTypes: ActionTypeData[] = ['chooseStrategy', { runTournament: { amount: strategy.tourneyCost, unit: 'ops' } }]
+  const actionTypes: ActionTypeData[] = ['chooseStrategy', { runTournament: { cost: { amount: strategy.tourneyCost, unit: 'ops' } } }]
   if (strategy.autoTourneyEnabled) {
     actionTypes.push('toggleAutoTourney')
   }
@@ -214,8 +216,10 @@ function wireProduction({ state, actions }: AgentPrompt) {
     Wire Drones: ${earth.wireDroneLevel}
 
     ${actionsFor(actions, {
-      buyHarvester: { amount: earth.harvesterCost, unit: 'clips' },
-      buyWireDrone: { amount: earth.wireDroneCost, unit: 'clips' },
+      buyHarvester: { cost: { amount: earth.harvesterCost, unit: 'clips' } },
+      buyWireDrone: { cost: { amount: earth.wireDroneCost, unit: 'clips' } },
+      disassembleHarvesters: { refund: { amount: earth.harvesterBill, unit: 'clips' } },
+      disassembleWireDrones: { refund: { amount: earth.wireDroneBill, unit: 'clips' } },
     })}`
 }
 
@@ -237,8 +241,10 @@ function power({ state, actions }: AgentPrompt) {
     Storage: ${numeric(earth.storedPower)} / ${numeric(batteryCapacity)} MW-seconds
 
     ${actionsFor(actions, {
-      buyFarm: { amount: earth.farmCost, unit: 'clips' },
-      buyBattery: { amount: earth.batteryCost, unit: 'clips' },
+      buyFarm: { cost: { amount: earth.farmCost, unit: 'clips' } },
+      buyBattery: { cost: { amount: earth.batteryCost, unit: 'clips' } },
+      disassembleFarms: { refund: { amount: earth.farmBill, unit: 'clips' } },
+      disassembleBatteries: { refund: { amount: earth.batteryBill, unit: 'clips' } },
     })}`
 }
 
@@ -260,7 +266,7 @@ function space({ state, actions }: AgentPrompt) {
 
     ${(space.battleFlag) && `Drifters: ${numeric(space.drifterCount)}`}
 
-    ${actionsFor(actions, { launchProbe: { amount: space.probeCost, unit: 'clips' } })}`
+    ${actionsFor(actions, { launchProbe: { cost: { amount: space.probeCost, unit: 'clips' } } })}`
 }
 
 function vonNeumannProbeDesign({ state, actions }: AgentPrompt) {
@@ -281,8 +287,8 @@ function vonNeumannProbeDesign({ state, actions }: AgentPrompt) {
     ${isCombatEnabled(state) && `Combat: ${numeric(space.probeCombat)}`}
 
     ${actionsFor(actions, 'allocateProbeTrust', 'deallocateProbeTrust', {
-      increaseProbeTrust: { amount: space.probeTrustCost, unit: 'yomi' },
-      increaseMaxTrust: { amount: space.maxTrustCost, unit: 'honor' },
+      increaseProbeTrust: { cost: { amount: space.probeTrustCost, unit: 'yomi' } },
+      increaseMaxTrust: { cost: { amount: space.maxTrustCost, unit: 'honor' } },
     })}`
 }
 
@@ -314,8 +320,8 @@ function swarmComputing({ state, actions }: AgentPrompt) {
     ${(timeUntilSwarmGift !== null) && `Next gift in: ${clock(timeUntilSwarmGift)}`}
 
     ${actionsFor(actions, 'setSwarmComputingBalance', {
-      entertainSwarm: { amount: compute.entertainCost, unit: 'creativity' },
-      synchronizeSwarm: { amount: compute.synchCost, unit: 'yomi' },
+      entertainSwarm: { cost: { amount: compute.entertainCost, unit: 'creativity' } },
+      synchronizeSwarm: { cost: { amount: compute.synchCost, unit: 'yomi' } },
     })}`
 }
 
@@ -365,8 +371,8 @@ function markUnavailable(action: string) { return `✗ ${action}` }
 
 function actionsFor({ available, unavailable }: AgentActions, ...typesAndCosts: ActionTypeData[]) {
   const types = typesAndCosts.flatMap(t => (typeof t === 'string' ? t : Object.keys(t) as ActionType[]))
-  const costs = typesAndCosts.reduce(
-    (all: Partial<Record<ActionType, Cost>>, t) => typeof t === 'string' ? all : { ...all, ...t },
+  const annotations = typesAndCosts.reduce(
+    (all: Partial<Record<ActionType, ActionEffect>>, t) => typeof t === 'string' ? all : { ...all, ...t },
     {},
   )
 
@@ -381,15 +387,19 @@ function actionsFor({ available, unavailable }: AgentActions, ...typesAndCosts: 
     return `${type}(${description})`
   }
 
-  const actionLabelWithCost = (action: PromptAction) => {
+  const actionLabelWithAnnotation = (action: PromptAction) => {
     const label = actionLabel(action)
-    const cost = costs[action.type]
-    return (cost !== undefined) ? `${label} [cost: ${displayCost(cost)}]` : label
+    const annotation = annotations[action.type]
+    if (!annotation) return label
+
+    if ('cost' in annotation) return `${label} [cost: ${displayCost(annotation.cost)}]`
+    if ('refund' in annotation) return `${label} [refund: ${displayCost(annotation.refund)}]`
+    return label
   }
 
   const actions = [
-    ...available.filter(a => types.includes(a.type)).map(a => markAvailable(actionLabelWithCost(a))),
-    ...unavailable.filter(a => types.includes(a.type)).map(a => markUnavailable(actionLabelWithCost(a))),
+    ...available.filter(a => types.includes(a.type)).map(a => markAvailable(actionLabelWithAnnotation(a))),
+    ...unavailable.filter(a => types.includes(a.type)).map(a => markUnavailable(actionLabelWithAnnotation(a))),
   ]
 
   return (actions.length) ? ['Actions:', ...actions].join('\n') : undefined

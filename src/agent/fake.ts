@@ -206,7 +206,7 @@ export default function createFakeAgent(): AgentTeam {
       project66: { urgent: false, shouldExecute: () => true },
       project119: { urgent: false, shouldExecute: () => true },
       project118: { urgent: false, shouldExecute: () => false },
-      project70: { urgent: false, shouldExecute: s => s.production.unsoldClips > 113_000_000 },
+      project70: { urgent: false, shouldExecute: s => s.production.unusedClips > 113_000_000 },
       project35: { urgent: true,  shouldExecute: () => true },
       project18: { urgent: true,  shouldExecute: () => true },
       project127: { urgent: true, shouldExecute: () => true },
@@ -442,6 +442,11 @@ export default function createFakeAgent(): AgentTeam {
       }
       if ([earth.farmLevel, earth.batteryLevel, earth.harvesterLevel, earth.wireDroneLevel, earth.factoryLevel].some(l => l === 0)) {
         return { plan: [{ type: 'wait', turns: 1 }], reasoning: 'Not enough clips to build what we need, holding off until then.' }
+      }
+
+      const disassembleFactories = find('disassembleFactories')
+      if (disassembleFactories && unavailable.some((a) => a.type === 'completeProject' && a.projectId === 'project46') && state.production.unusedClips + earth.factoryBill >= 5e27) {
+        return { plan: [disassembleFactories], reasoning: 'Disassembling factories to explore SPACE' }
       }
 
       const prevEarth = previousState.earth

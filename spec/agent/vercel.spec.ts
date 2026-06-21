@@ -38,8 +38,6 @@ vi.mock('ai', () => ({
   },
 }))
 
-vi.hoisted(() => { vi.stubEnv('OPENROUTER_API_KEY', undefined as any) })
-
 const mockGenerateText = vi.mocked(generateText)
 
 const sampleAgentAction: AgentAction = { type: 'makeClip' }
@@ -82,7 +80,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockGenerateText.mockResolvedValue(mockGenerateTextOutput(sampleAgentAction, 'Just getting started!'))
 })
-afterEach(() => { vi.unstubAllEnvs() })
 
 describe('player', () => {
   it('sets the model according to the argument', async () => {

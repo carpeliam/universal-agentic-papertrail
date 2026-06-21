@@ -184,6 +184,8 @@ export default function createFakeAgent(): AgentTeam {
           return s.economy.clipPrice >= project38PriceTarget
         }
       },
+      project50: { urgent: true, shouldExecute: () => true },
+      project51: { urgent: true, shouldExecute: s => !s.projects.project51 },
       project1:  { urgent: false, shouldExecute: s => s.compute.processors > 5 },
       project4:  { urgent: false, shouldExecute: s => s.projects.project34 },
       project5:  { urgent: false, shouldExecute: s => s.projects.project34 },

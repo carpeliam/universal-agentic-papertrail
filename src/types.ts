@@ -42,6 +42,7 @@ export const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('toggleAutoTourney') }),
   z.object({ type: z.literal('addProcessor') }),
   z.object({ type: z.literal('addMemory') }),
+  z.object({ type: z.literal('quantumCompute').describe('generate bonus ops using probability amplitudes') }),
   z.object({ type: z.literal('raisePrice').describe('raise price by $0.01') }),
   z.object({ type: z.literal('lowerPrice').describe('lower price by $0.01') }),
   z.object({ type: z.literal('completeProject'), projectId: projectIdSchema, title: z.string().nullable(), description: z.string().nullable(), cost: z.union([costSchema, z.array(costSchema)]).nullable(), }),

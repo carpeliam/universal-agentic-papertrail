@@ -15,6 +15,8 @@ export function displayPrompt(prompt: AgentPrompt): string {
 
     ${compute(prompt)}
 
+    ${quantumCompute(prompt)}
+
     ${investments(prompt)}
 
     ${wireProduction(prompt)}
@@ -110,6 +112,32 @@ function compute({ state, actions }: AgentPrompt) {
     ${(compute.creativityOn) && `Creativity: ${numeric(compute.creativity)}`}
 
     ${actionsFor(actions, 'addProcessor', 'addMemory')}`
+}
+
+const MIN_CHIP_VALUE = -1
+const MAX_CHIP_VALUE = 1
+const THRESHOLD_PERCENT = 0.85
+function quantumCompute({ state, actions }: AgentPrompt) {
+  if (!state.projects.project50) return
+  const { compute } = state
+
+  const describeChipState = ({ value, waveSeed }: { value: number, waveSeed: number }) => {
+    if (value >= MAX_CHIP_VALUE * THRESHOLD_PERCENT) return 'peaking'
+    if (value <= MIN_CHIP_VALUE * THRESHOLD_PERCENT) return 'troughing'
+    const rising = Math.cos(compute.qClock * waveSeed) > 0
+    return value > 0
+      ? (rising ? 'rising toward a peak' : 'falling from a peak')
+      : (rising ? 'rising out of a trough' : 'falling toward a trough')
+  }
+
+  return md`\
+    ### Quantum Computing
+
+    ${compute.qChips.filter(c => c.active).map((chip, i) => `Chip ${i + 1}: ${describeChipState(chip)}`)}
+
+    ${compute.qOps && `Last compute: ${numeric(compute.qOps)} qOps`}
+
+    ${actionsFor(actions, 'quantumCompute')}`
 }
 
 function investments({ state, actions }: AgentPrompt) {

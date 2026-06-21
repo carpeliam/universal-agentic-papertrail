@@ -29,6 +29,11 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyWire' }],
   },
   {
+    isVisible: (s) => !!s.projects.project50 && s.compute.qChips.some(c => c.active),
+    canActivate: () => true,
+    actions: () => [{ type: 'quantumCompute' }]
+  },
+  {
     isVisible: (s) => !!s.compute.swarmFlag,
     canActivate: () => true,
     actions: () => [{ type: 'setSwarmComputingBalance', workThinkBalance: description('integer(0-100)') }]

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest"
-import { createInitialGameState, type GameState } from "paperclips-remake"
+import { createInitialGameState, reduceGameState, type GameState } from "paperclips-remake"
 import { createAgentPrompt } from "@/agent-adapter"
 import { displayPrompt } from "@/agent/markdown-adapter"
-import { applyGameState, withAutoClippersEnabled, withFactoryCapability, withHarvesting, withMegaClippersEnabled, withFullMonopolyVisible, withPowerGrid, withStrategicModeling, withWireDroneCapability, withWireProduction, withComputeUnlocked, withExpansion, withSpacePhase, withInvestingUnlocked, withHypnoDronesAvailable, withCreativity, withCombat, withBattle, withSwarmComputing, type DeepPartial } from "../helper"
+import { applyGameState, withAutoClippersEnabled, withFactoryCapability, withHarvesting, withMegaClippersEnabled, withFullMonopolyVisible, withPowerGrid, withStrategicModeling, withWireDroneCapability, withWireProduction, withComputeUnlocked, withExpansion, withSpacePhase, withInvestingUnlocked, withHypnoDronesAvailable, withCreativity, withCombat, withBattle, withSwarmComputing, withPhotonicChips, type DeepPartial } from "../helper"
 
 describe('displayPrompt', () => {
   it('always displays paperclip count as h1', () => {
@@ -446,6 +446,22 @@ describe('displayPrompt', () => {
       expect(prompt).toContain('**Active Battle: Drifter Attack 2536264**')
       expect(prompt).toContain('Our probes: 32 / 34')
       expect(prompt).toContain('Enemy drifter probes: 34 / 34')
+    })
+  })
+
+  describe('Quantum Computing', () => {
+    it('displays Quantum Computing panel on unlock', () => {
+      const state = reduceGameState(
+        applyGameState(withPhotonicChips(), { compute: { qOps: 306 } }),
+        { type: 'tick', deltaMs: 1_000 }
+      )
+      const prompt = displayPrompt(createAgentPrompt(state))
+
+      expect(prompt).toContain('### Quantum Computing')
+      expect(prompt).toContain('Chip 1: rising toward a peak')
+      expect(prompt).toContain('Last compute: 306 qOps')
+      expect(prompt).not.toContain('Chip 2')
+      expect(prompt).toContain(' quantumCompute')
     })
   })
 

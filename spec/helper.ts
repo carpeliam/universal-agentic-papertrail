@@ -5,10 +5,13 @@ export type DeepPartial<T> = {
 }
 function patch<TBase extends GameState | DeepPartial<GameState>>(base: TBase, overrides: DeepPartial<GameState>): TBase {
   const { compute, production, economy, investment, strategy, earth, space, projects, ...rest } = overrides
+  const qChips = (base.compute?.qChips || compute?.qChips)?.map((qChip, i) => (
+    Object.assign({}, qChip, compute?.qChips?.at(i))
+  ))
   return {
     ...base,
     ...rest,
-    compute: { ...base.compute, ...compute } as GameState['compute'],
+    compute: { ...base.compute, ...compute, qChips } as GameState['compute'],
     production: { ...base.production, ...production } as GameState['production'],
     economy: { ...base.economy, ...economy } as GameState['economy'],
     investment: { ...base.investment, ...investment } as GameState['investment'],
@@ -65,6 +68,18 @@ export function withStrategicModeling(): DeepPartial<GameState> {
   return patch(withComputeUnlocked(), {
     strategy: { unlocked: true },
     projects: { project20: true },
+  })
+}
+
+export function withQuantumComputing(): DeepPartial<GameState> {
+  return patch(withComputeUnlocked(), {
+    projects: { project50: true },
+  })
+}
+
+export function withPhotonicChips(chipCount = 1): DeepPartial<GameState> {
+  return patch(withQuantumComputing(), {
+    compute: { qChips: Array.from({ length: chipCount }, () => ({ active: true })) },
   })
 }
 

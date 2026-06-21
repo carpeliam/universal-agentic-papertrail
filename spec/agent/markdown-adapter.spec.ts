@@ -52,8 +52,9 @@ describe('displayPrompt', () => {
         expect(prompt).toContain('Price per Clip: $0.25')
         expect(prompt).toContain('Public Demand: 32%')
         expect(prompt).toContain('## Manufacturing')
-        expect(prompt).toContain('Clips per Tick: 15,750')
+        expect(prompt).toContain('Clips made during last action: 15,750')
         expect(prompt).toContain('Wire: 1,000 inches')
+        expect(prompt).not.toContain('Next Upgrade at:')
         expect(prompt).not.toContain('Unused Clips:')
         expect(prompt).not.toContain(' buyHarvester')
         expect(prompt).not.toContain(' buyWireDrone')
@@ -204,12 +205,13 @@ describe('displayPrompt', () => {
     it('displays upon unlock', () => {
       const prompt = displayPromptWithState(withExpansion(), {
         production: { unusedClips: 57250507.5 },
-        earth: { factoryLevel: 1 },
+        earth: { factoryLevel: 1, maxFactoryLevel: 1 },
         lastTickProduction: 15750,
       })
 
       expect(prompt).toContain('## Manufacturing')
-      expect(prompt).toContain('Clips per Tick: 15,750')
+      expect(prompt).toContain('Next Upgrade at: 10 Factories')
+      expect(prompt).toContain('Clips made during last action: 15,750')
       expect(prompt).toContain('Unused Clips: 57,250,508')
       expect(prompt).toContain('Factories: 1')
       expect(prompt).not.toContain('Wire:')
@@ -234,13 +236,15 @@ describe('displayPrompt', () => {
           wireDroneRate: 16180339,
           harvesterLevel: 1,
           wireDroneLevel: 2,
+          maxDroneLevel: 503,
         },
       })
 
       expect(prompt).toContain('## Wire Production')
-      expect(prompt).toContain('Available Matter: 6,000,000,000,000,000,000,000,000,000 g')
-      expect(prompt).toContain('Acquired Matter: 261,803,370 g (26,180,337 g per tick)')
-      expect(prompt).toContain('Wire: 161,803,390 inches (16,180,339 inches per tick)')
+      expect(prompt).toContain('Next Upgrade at: 5,000 Drones')
+      expect(prompt).toContain('Available Matter: 6,000,000,000,000,000,000,000,000,000 g\n')
+      expect(prompt).toMatch(/Acquired Matter: 261,803,370 g \([\d,]+ g per second\)/)
+      expect(prompt).toMatch(/Wire: 161,803,390 inches \([\d,]+ inches per second\)/)
       expect(prompt).toContain('Harvester Drones: 1')
       expect(prompt).toContain('Wire Drones: 2')
     })
@@ -324,8 +328,9 @@ describe('displayPrompt', () => {
       })
 
       expect(prompt).toContain('## Manufacturing')
-      expect(prompt).toContain('Clips per Tick: 15,750')
+      expect(prompt).toContain('Clips made during last action: 15,750')
       expect(prompt).toContain('Unused Clips: 57,250,508')
+      expect(prompt).not.toContain('Next Upgrade at:')
     })
 
     it('displays Wire Production', () => {
@@ -339,14 +344,16 @@ describe('displayPrompt', () => {
           harvesterLevel: 1,
           wireDroneLevel: 2,
         },
+        space: { probeSpeed: 1, probeNav: 1 },
       })
 
       expect(prompt).toContain('## Wire Production')
-      expect(prompt).toContain('Available Matter: 261,803,371 g')
-      expect(prompt).toContain('Acquired Matter: 261,803,370 g (26,180,337 g per tick)')
-      expect(prompt).toContain('Wire: 161,803,390 inches (16,180,339 inches per tick)')
+      expect(prompt).toMatch(/Available Matter: 261,803,371 g \([\d,]+ g per second\)/)
+      expect(prompt).toMatch(/Acquired Matter: 261,803,370 g \([\d,]+ g per second\)/)
+      expect(prompt).toMatch(/Wire: 161,803,390 inches \([\d,]+ inches per second\)/)
       expect(prompt).toContain('Harvester Drones: 1')
       expect(prompt).toContain('Wire Drones: 2')
+      expect(prompt).not.toContain('Next Upgrade at:')
       expect(prompt).not.toContain(' buyHarvester')
       expect(prompt).not.toContain(' buyWireDrone')
       expect(prompt).not.toContain(' buyFactory')

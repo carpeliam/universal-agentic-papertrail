@@ -1,4 +1,4 @@
-import { getDroneStatus, getMaxOps, getTotalDroneCount, totalSecondsUntilSwarmGift, type GameState } from 'paperclips-remake'
+import { explorationOutputPerSecond, getDroneStatus, getMaxOps, getTotalDroneCount, harvesterOutputPerSecond, totalSecondsUntilSwarmGift, wireDroneOutputPerSecond, type GameState } from 'paperclips-remake'
 import { areAutoClippersVisible, areMegaClippersVisible, isCombatEnabled } from '@/domain'
 import type { AgentAction, AgentActions, AgentPrompt, Cost, PromptAction } from '../types'
 
@@ -64,10 +64,15 @@ function business({ state, actions }: AgentPrompt) {
 function manufacturing({ state, actions }: AgentPrompt) {
   const { production, economy, earth, lastTickProduction } = state
 
+  const nextFactoryUpgrade = (earth.humanFlag || earth.spaceFlag)
+    ? null
+    : [10, 20, 50].find(threshold => earth.maxFactoryLevel < threshold)
+
   return md`\
     ## Manufacturing
 
-    Clips per Tick: ${numeric(lastTickProduction)}
+    ${nextFactoryUpgrade && `Next Upgrade at: ${numeric(nextFactoryUpgrade)} Factories`}
+    Clips made during last action: ${numeric(lastTickProduction)}
     ${(earth.humanFlag)
       ? `Wire: ${numeric(production.wire)} inches`
       : [
@@ -205,15 +210,20 @@ function wireProduction({ state, actions }: AgentPrompt) {
   const { production, earth } = state
   if (!earth.wireProductionFlag) return
 
+  const nextDroneUpgrade = (earth.spaceFlag)
+    ? null
+    : [500, 5_000, 50_000].find(threshold => earth.maxDroneLevel < threshold)
+
   return md`\
     ## Wire Production
 
-    Available Matter: ${numeric(earth.availableMatter)} g
-    Acquired Matter: ${numeric(earth.acquiredMatter)} g (${numeric(earth.harvesterRate)} g per tick)
-    Wire: ${numeric(production.wire)} inches (${numeric(earth.wireDroneRate)} inches per tick)
+    ${nextDroneUpgrade && `Next Upgrade at: ${numeric(nextDroneUpgrade)} Drones`}
+    Available Matter: ${numeric(earth.availableMatter)} g${earth.spaceFlag && ` (${numeric(explorationOutputPerSecond(state))} g per second)`}
+    Acquired Matter: ${numeric(earth.acquiredMatter)} g (${numeric(harvesterOutputPerSecond(state))} g per second)
+    Wire: ${numeric(production.wire)} inches (${numeric(wireDroneOutputPerSecond(state))} inches per second)
 
-    Harvester Drones: ${earth.harvesterLevel}
-    Wire Drones: ${earth.wireDroneLevel}
+    Harvester Drones: ${numeric(earth.harvesterLevel)}
+    Wire Drones: ${numeric(earth.wireDroneLevel)}
 
     ${actionsFor(actions, {
       buyHarvester: { cost: { amount: earth.harvesterCost, unit: 'clips' } },
@@ -325,7 +335,7 @@ function swarmComputing({ state, actions }: AgentPrompt) {
     })}`
 }
 
-function projects({ state, actions }: AgentPrompt) {
+function projects({ actions }: AgentPrompt) {
   const availableProjects = actions.available.filter(a => a.type === 'completeProject')
   const unavailableProjects = actions.unavailable.filter(a => a.type === 'completeProject')
   if (!availableProjects.length && !unavailableProjects.length) return

@@ -130,7 +130,7 @@ export default function createFakeAgent(): AgentTeam {
   let project37PriceTarget: number
   let project38PriceTarget: number
   let project40PriceTarget: number
-  const haveSeenProject: Record<string, boolean> = { project37: false, project38: false, project40: false }
+  const haveSeenProject: Record<string, boolean> = { project37: false, project38: false, project40: false, project40b: false }
 
   async function play(prompt: AgentPrompt): Promise<AgentResponse> {
     await new Promise(resolve => setTimeout(resolve, 5))
@@ -138,28 +138,28 @@ export default function createFakeAgent(): AgentTeam {
     capturedState = prompt.state
     tickCount++
 
-    const priorityProjects: Record<string, { urgent: boolean, shouldExecute: (state: GameState) => boolean }> = {
-      project26: { urgent: true,  shouldExecute: () => true },
-      project7:  { urgent: true,  shouldExecute: () => true },
-      project8:  { urgent: true,  shouldExecute: () => true },
-      project9:  { urgent: true,  shouldExecute: () => true },
-      project10: { urgent: true,  shouldExecute: () => true },
-      project10b:{ urgent: true,  shouldExecute: () => true },
-      project2:  { urgent: true,  shouldExecute: () => true },
-      project3:  { urgent: true,  shouldExecute: () => true },
-      project6:  { urgent: true,  shouldExecute: () => true },
-      project13: { urgent: true,  shouldExecute: () => true },
-      project14: { urgent: true,  shouldExecute: () => true },
-      project15: { urgent: true,  shouldExecute: () => true },
-      project17: { urgent: true,  shouldExecute: () => true },
-      project19: { urgent: true,  shouldExecute: () => true },
-      project27: { urgent: true,  shouldExecute: () => true },
-      project28: { urgent: true,  shouldExecute: () => true },
-      project29: { urgent: true,  shouldExecute: () => true },
-      project30: { urgent: true,  shouldExecute: () => true },
-      project31: { urgent: true,  shouldExecute: () => true },
-      project11: { urgent: true,  shouldExecute: () => true },
-      project12: { urgent: true,  shouldExecute: () => true },
+    const priorityProjects: Partial<Record<ProjectId, { urgent: boolean, shouldExecute: (state: GameState) => boolean }>> = {
+      project26: { urgent: true, shouldExecute: () => true },
+      project7: { urgent: true, shouldExecute: () => true },
+      project8: { urgent: true, shouldExecute: () => true },
+      project9: { urgent: true, shouldExecute: () => true },
+      project10: { urgent: true, shouldExecute: () => true },
+      project10b: { urgent: true, shouldExecute: () => true },
+      project2: { urgent: true, shouldExecute: () => true },
+      project3: { urgent: true, shouldExecute: () => true },
+      project6: { urgent: true, shouldExecute: () => true },
+      project13: { urgent: true, shouldExecute: () => true },
+      project14: { urgent: true, shouldExecute: () => true },
+      project15: { urgent: true, shouldExecute: () => true },
+      project17: { urgent: true, shouldExecute: () => true },
+      project19: { urgent: true, shouldExecute: () => true },
+      project27: { urgent: true, shouldExecute: () => true },
+      project28: { urgent: true, shouldExecute: () => true },
+      project29: { urgent: true, shouldExecute: () => true },
+      project30: { urgent: true, shouldExecute: () => true },
+      project31: { urgent: true, shouldExecute: () => true },
+      project11: { urgent: true, shouldExecute: () => true },
+      project12: { urgent: true, shouldExecute: () => true },
       project40: {
         urgent: true, shouldExecute: s => {
           if (!project40PriceTarget) {
@@ -168,6 +168,7 @@ export default function createFakeAgent(): AgentTeam {
           return s.economy.clipPrice >= project40PriceTarget
         }
       },
+      project40b: { urgent: true, shouldExecute: () => true },
       project37: {
         urgent: true, shouldExecute: s => {
           if (!project37PriceTarget) {
@@ -186,9 +187,9 @@ export default function createFakeAgent(): AgentTeam {
       },
       project50: { urgent: true, shouldExecute: () => true },
       project51: { urgent: true, shouldExecute: s => !s.projects.project51 },
-      project1:  { urgent: false, shouldExecute: s => s.compute.processors > 5 },
-      project4:  { urgent: false, shouldExecute: s => s.projects.project34 },
-      project5:  { urgent: false, shouldExecute: s => s.projects.project34 },
+      project1: { urgent: false, shouldExecute: s => s.compute.processors > 5 },
+      project4: { urgent: false, shouldExecute: s => s.projects.project34 },
+      project5: { urgent: false, shouldExecute: s => s.projects.project34 },
       project16: { urgent: false, shouldExecute: s => s.projects.project34 },
       project22: { urgent: false, shouldExecute: () => true },
       project23: { urgent: false, shouldExecute: () => true },
@@ -207,23 +208,24 @@ export default function createFakeAgent(): AgentTeam {
       project119: { urgent: false, shouldExecute: () => true },
       project118: { urgent: false, shouldExecute: () => false },
       project70: { urgent: false, shouldExecute: s => s.production.unusedClips > 113_000_000 },
-      project35: { urgent: true,  shouldExecute: () => true },
-      project18: { urgent: true,  shouldExecute: () => true },
+      project35: { urgent: true, shouldExecute: () => true },
+      project18: { urgent: true, shouldExecute: () => true },
       project127: { urgent: true, shouldExecute: () => true },
-      project41: { urgent: true,  shouldExecute: () => true },
-      project43: { urgent: true,  shouldExecute: () => true },
-      project44: { urgent: true,  shouldExecute: () => true },
-      project45: { urgent: true,  shouldExecute: () => true },
+      project41: { urgent: true, shouldExecute: () => true },
+      project43: { urgent: true, shouldExecute: () => true },
+      project44: { urgent: true, shouldExecute: () => true },
+      project45: { urgent: true, shouldExecute: () => true },
       project126: { urgent: true, shouldExecute: () => true },
       project100: { urgent: true, shouldExecute: () => true },
       project101: { urgent: true, shouldExecute: () => true },
       project110: { urgent: true, shouldExecute: () => true },
       project111: { urgent: true, shouldExecute: () => true },
       project125: { urgent: true, shouldExecute: () => true },
-      project46: { urgent: true,  shouldExecute: () => true },
+      project46: { urgent: true, shouldExecute: () => true },
       project130: { urgent: true, shouldExecute: () => true },
       project120: { urgent: false, shouldExecute: () => true },
       project121: { urgent: false, shouldExecute: () => true },
+      project128: { urgent: false, shouldExecute: () => true },
       project129: { urgent: false, shouldExecute: () => true },
       project131: { urgent: true, shouldExecute: () => true },
       project132: { urgent: true, shouldExecute: () => true },
@@ -241,13 +243,15 @@ export default function createFakeAgent(): AgentTeam {
     const buyWire = find('buyWire')
     const investWithdraw = find('investWithdraw')
 
-    const needToKeepMoneyInStocks = haveSeenProject['project37'] && !state.projects.project37 && !findProject('project37')
+    const needToKeepMoneyInStocksForProject37 = haveSeenProject['project37'] && !state.projects.project37 && !findProject('project37')
+    const needToKeepMoneyInStocksForProject40b = haveSeenProject['project40b'] && state.projects.project37 && (state.investment.bankroll ?? 0) < ((Math.pow(2, 100 - (state.compute.trust ?? 100)) - 1) * 1e6)
+    const needToKeepMoneyInStocks = needToKeepMoneyInStocksForProject37 || needToKeepMoneyInStocksForProject40b
 
     // ─── URGENT PROJECTS (before resource safety) ────────────────────────────
     const availableProjects = available.filter((a) => a.type === 'completeProject') as Extract<AgentAction, { type: 'completeProject' }>[]
     const urgentProject = availableProjects.find((p) =>
       priorityProjects[p.projectId]?.urgent &&
-      priorityProjects[p.projectId].shouldExecute(state)
+      priorityProjects[p.projectId]?.shouldExecute(state)
     )
     if (urgentProject) {
       return { plan: [urgentProject], reasoning: `${urgentProject.title} is available, completing it first.` }
@@ -355,6 +359,13 @@ export default function createFakeAgent(): AgentTeam {
           state.production.funds + state.investment.bankroll >= 10_000_000
         ) {
           return { plan: [investWithdraw], reasoning: 'Withdrawing to afford Full Monopoly.' }
+        }
+        if (
+          investWithdraw &&
+          haveSeenProject['project40b'] &&
+          state.production.funds + state.investment.bankroll >= (Math.pow(2, 100 - state.compute.trust) - 1) * 1e6
+        ) {
+          return { plan: [investWithdraw], reasoning: 'Withdrawing to afford another Token of Goodwill.' }
         }
       }
 

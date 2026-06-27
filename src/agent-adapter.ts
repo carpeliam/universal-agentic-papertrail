@@ -299,6 +299,7 @@ export function actionDuration(action: AgentAction): number {
     case 'increaseProbeTrust':
     case 'allocateProbeTrust':
     case 'deallocateProbeTrust':
+    case 'quantumCompute':
       return 100
     case 'wait':
       return action.turns * 1_000

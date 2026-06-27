@@ -355,15 +355,16 @@ function currency(n: number, { showCents } = { showCents: true }) {
   return `$${numeric(n, showCents ? 2 : 0)}`
 }
 
-function clock(ms: number) {
-  if (ms === Infinity) return String(ms)
-  const totalSeconds = Math.floor(ms / 1000)
+function clock(durationInMs: number) {
+  if (durationInMs === Infinity) return String(durationInMs)
+  const totalSeconds = Math.floor(durationInMs / 1000)
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
   const s = totalSeconds % 60
+  const ms = Math.round(durationInMs % 1000)
   return (h > 0)
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`
 }
 
 function displayCost(cost: Cost | Cost[]) {

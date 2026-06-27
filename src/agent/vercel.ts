@@ -289,8 +289,9 @@ notes; treat them like cliff notes for everything that happened before you arriv
 yourself, but trust the current state over the notes; things may have moved on since they were written.`)
   }
   parts.push(`\
-In-game time is a real cost. Use the current environment to gauge your progress and how \
-quickly you're moving toward your current goal. Deliberate when it's worth it; act when the path is clear.
+In-game time is a real cost. Every action taken ticks the clock forward. Use the current \
+environment to gauge your progress and how quickly you're moving toward your current goal. \
+Deliberate when it's worth it; act when the path is clear.
 Unavailable actions are your horizon: reachable goals. Between the current state and the actions \
 themselves you should be able to see what's standing between you and them. Use them to identify \
 your next bottleneck.`)

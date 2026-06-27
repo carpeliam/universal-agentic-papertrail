@@ -15,10 +15,11 @@ describe('displayPrompt', () => {
   })
 
   it('always shows a clock', () => {
-    expect(displayPromptWithState({ elapsedMs: 4800 })).toContain('Clock: 0:04')
-    expect(displayPromptWithState({ elapsedMs: 1552349 })).toContain('Clock: 25:52')
-    expect(displayPromptWithState({ elapsedMs: 16187411 })).toContain('Clock: 4:29:47')
-    expect(displayPromptWithState({ elapsedMs: 260044800 })).toContain('Clock: 72:14:04')
+    expect(displayPromptWithState({ elapsedMs: 1234.56789 })).toContain('Clock: 0:01.235\n')
+    expect(displayPromptWithState({ elapsedMs: 4800 })).toContain('Clock: 0:04.800\n')
+    expect(displayPromptWithState({ elapsedMs: 1552349 })).toContain('Clock: 25:52.349\n')
+    expect(displayPromptWithState({ elapsedMs: 16187411 })).toContain('Clock: 4:29:47.411\n')
+    expect(displayPromptWithState({ elapsedMs: 260044800 })).toContain('Clock: 72:14:04.800\n')
   })
 
   it('always shows available/unavailable actions as JSON in footer', () => {

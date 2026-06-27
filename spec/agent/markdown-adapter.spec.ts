@@ -520,7 +520,7 @@ describe('displayPrompt', () => {
         },
       })
 
-      expect(prompt).toContain('## Swarm Computing')
+      expect(prompt).toContain('### Swarm Computing')
       expect(prompt).toContain('Drone count: 213,800,000,000,000,000,000,000,000')
       expect(prompt).toContain('Swarm status: Active')
       expect(prompt).toContain('Work/Think balance: 23 (0=all work, 100=all think)')

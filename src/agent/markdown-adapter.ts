@@ -18,6 +18,8 @@ export function displayPrompt(prompt: AgentPrompt): string {
 
     ${quantumCompute(prompt)}
 
+    ${swarmComputing(prompt)}
+
     ${investments(prompt)}
 
     ${wireProduction(prompt)}
@@ -31,8 +33,6 @@ export function displayPrompt(prompt: AgentPrompt): string {
     ${combat(prompt)}
 
     ${strategy(prompt)}
-
-    ${swarmComputing(prompt)}
 
     ${projects(prompt)}
 
@@ -317,7 +317,7 @@ function swarmComputing({ state, actions }: AgentPrompt) {
 
   const timeUntilSwarmGift = totalSecondsUntilSwarmGift(state)
   return md`\
-    ## Swarm Computing
+    ### Swarm Computing
 
     Drone count: ${numeric(getTotalDroneCount(state))}
     Swarm status: ${getDroneStatus(state)}

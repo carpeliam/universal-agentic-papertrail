@@ -104,8 +104,15 @@ export function withExpansion(): DeepPartial<GameState> {
   })
 }
 
-export function withWireProduction(): DeepPartial<GameState> {
+export function withTothTubuleEnfolding(): DeepPartial<GameState> {
   return patch(withExpansion(), {
+    earth: { tothFlag: true },
+    projects: { project18: true },
+  })
+}
+
+export function withWireProduction(): DeepPartial<GameState> {
+  return patch(withPowerGrid(), {
     earth: { wireProductionFlag: true },
     projects: { project41: true },
   })
@@ -136,7 +143,7 @@ export function withFactoryCapability(): DeepPartial<GameState> {
 }
 
 export function withPowerGrid(): DeepPartial<GameState> {
-  return patch(withExpansion(), {
+  return patch(withTothTubuleEnfolding(), {
     earth: { powerGridFlag: true },
     projects: { project127: true },
   })

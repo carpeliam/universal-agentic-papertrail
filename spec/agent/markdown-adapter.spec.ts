@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import { createInitialGameState, reduceGameState, type GameState } from "paperclips-remake"
 import { createAgentPrompt } from "@/agent-adapter"
 import { displayPrompt } from "@/agent/markdown-adapter"
-import { applyGameState, withAutoClippersEnabled, withFactoryCapability, withHarvesting, withMegaClippersEnabled, withFullMonopolyVisible, withPowerGrid, withStrategicModeling, withWireDroneCapability, withWireProduction, withComputeUnlocked, withExpansion, withSpacePhase, withInvestingUnlocked, withHypnoDronesAvailable, withCreativity, withCombat, withBattle, withSwarmComputing, withPhotonicChips, type DeepPartial } from "../helper"
+import { applyGameState, withAutoClippersEnabled, withFactoryCapability, withHarvesting, withMegaClippersEnabled, withFullMonopolyVisible, withPowerGrid, withStrategicModeling, withWireDroneCapability, withWireProduction, withComputeUnlocked, withExpansion, withSpacePhase, withInvestingUnlocked, withHypnoDronesAvailable, withCreativity, withCombat, withBattle, withSwarmComputing, withPhotonicChips, withTothTubuleEnfolding, type DeepPartial } from "../helper"
 
 describe('displayPrompt', () => {
   it('always displays paperclip count as h1', () => {
@@ -203,17 +203,13 @@ describe('displayPrompt', () => {
 
   describe('Stage 2', () => {
     it('displays upon unlock', () => {
-      const prompt = displayPromptWithState(withExpansion(), {
-        production: { unusedClips: 57250507.5 },
-        earth: { factoryLevel: 1, maxFactoryLevel: 1 },
-        lastTickProduction: 15750,
-      })
+      const prompt = displayPromptWithState(withExpansion())
 
       expect(prompt).toContain('## Manufacturing')
-      expect(prompt).toContain('Next Upgrade at: 10 Factories')
-      expect(prompt).toContain('Clips made during last action: 15,750')
-      expect(prompt).toContain('Unused Clips: 57,250,508')
-      expect(prompt).toContain('Factories: 1')
+      expect(prompt).toContain('Clips made during last action:')
+      expect(prompt).not.toContain('Next Upgrade at:')
+      expect(prompt).not.toContain('Unused Clips:')
+      expect(prompt).not.toContain('Factories:')
       expect(prompt).not.toContain('Wire:')
       expect(prompt).not.toContain(' buyWire')
       expect(prompt).not.toContain(' buyMarketing')
@@ -227,24 +223,51 @@ describe('displayPrompt', () => {
       expect(prompt).not.toContain('## Space')
     })
 
+    it('displays unused clips upon completing Toth Tobule Enfolding', () => {
+      const prompt = displayPromptWithState(withTothTubuleEnfolding(), {
+        production: { unusedClips: 57250507.5 },
+      })
+
+      expect(prompt).toContain('Unused Clips: 57,250,508')
+    })
+
+    it('displays Factory fields as they become available', () => {
+      const prompt = displayPromptWithState(withFactoryCapability(), {
+        production: { unusedClips: 57250507.5 },
+        earth: { factoryLevel: 1, maxFactoryLevel: 1 },
+        lastTickProduction: 15750,
+      })
+
+      expect(prompt).toContain('Next Upgrade at: 10 Factories')
+      expect(prompt).toContain('Factories: 1')
+    })
+
     it('displays Wire Production fields as they become available', () => {
-      const prompt = displayPromptWithState(withWireProduction(), {
+      let prompt = displayPrompt(createAgentPrompt(applyGameState(withWireProduction(), {
         production: { wire: 161803390 },
         earth: {
           acquiredMatter: 261803370,
           harvesterRate: 26180337,
           wireDroneRate: 16180339,
+        },
+      })))
+
+      expect(prompt).toContain('## Wire Production')
+      expect(prompt).toContain('Available Matter: 6,000,000,000,000,000,000,000,000,000 g\n')
+      expect(prompt).toMatch(/Acquired Matter: 261,803,370 g \([\d,]+ g per second\)/)
+      expect(prompt).toMatch(/Wire: 161,803,390 inches \([\d,]+ inches per second\)/)
+      expect(prompt).toContain('Next Upgrade at: 500 Drones')
+      expect(prompt).not.toContain('Harvester Drones:')
+      expect(prompt).not.toContain('Wire Drones:')
+
+      prompt = displayPromptWithState(withHarvesting(), withWireDroneCapability(), {
+        earth: {
           harvesterLevel: 1,
           wireDroneLevel: 2,
           maxDroneLevel: 503,
         },
       })
-
-      expect(prompt).toContain('## Wire Production')
       expect(prompt).toContain('Next Upgrade at: 5,000 Drones')
-      expect(prompt).toContain('Available Matter: 6,000,000,000,000,000,000,000,000,000 g\n')
-      expect(prompt).toMatch(/Acquired Matter: 261,803,370 g \([\d,]+ g per second\)/)
-      expect(prompt).toMatch(/Wire: 161,803,390 inches \([\d,]+ inches per second\)/)
       expect(prompt).toContain('Harvester Drones: 1')
       expect(prompt).toContain('Wire Drones: 2')
     })

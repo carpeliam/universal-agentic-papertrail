@@ -64,21 +64,18 @@ function business({ state, actions }: AgentPrompt) {
 function manufacturing({ state, actions }: AgentPrompt) {
   const { production, economy, earth, lastTickProduction } = state
 
-  const nextFactoryUpgrade = (earth.humanFlag || earth.spaceFlag)
-    ? null
-    : [10, 20, 50].find(threshold => earth.maxFactoryLevel < threshold)
+  const nextFactoryUpgrade = earth.factoryFlag && !earth.spaceFlag && [10, 20, 50].find(threshold => earth.maxFactoryLevel < threshold)
 
   return md`\
     ## Manufacturing
 
-    ${nextFactoryUpgrade && `Next Upgrade at: ${numeric(nextFactoryUpgrade)} Factories`}
-    Clips made during last action: ${numeric(lastTickProduction)}
-    ${(earth.humanFlag)
-      ? `Wire: ${numeric(production.wire)} inches`
-      : [
-        `Unused Clips: ${numeric(production.unusedClips)}`,
-        `Factories: ${earth.factoryLevel}`
-      ]}
+    ${[
+      nextFactoryUpgrade && `Next Upgrade at: ${numeric(nextFactoryUpgrade)} Factories`,
+      `Clips made during last action: ${numeric(lastTickProduction)}`,
+      earth.humanFlag && `Wire: ${numeric(production.wire)} inches`,
+      earth.tothFlag && `Unused Clips: ${numeric(production.unusedClips)}`,
+      earth.factoryFlag && `Factories: ${earth.factoryLevel}`,
+    ].filter(Boolean)}
 
     ${areAutoClippersVisible(state) && `AutoClippers: ${numeric(production.autoClippers)}`}
     ${areMegaClippersVisible(state) && `MegaClippers: ${numeric(production.megaClippers)}`}
@@ -210,9 +207,7 @@ function wireProduction({ state, actions }: AgentPrompt) {
   const { production, earth } = state
   if (!earth.wireProductionFlag) return
 
-  const nextDroneUpgrade = (earth.spaceFlag)
-    ? null
-    : [500, 5_000, 50_000].find(threshold => earth.maxDroneLevel < threshold)
+  const nextDroneUpgrade = !earth.spaceFlag && [500, 5_000, 50_000].find(threshold => earth.maxDroneLevel < threshold)
 
   return md`\
     ## Wire Production
@@ -222,8 +217,8 @@ function wireProduction({ state, actions }: AgentPrompt) {
     Acquired Matter: ${numeric(earth.acquiredMatter)} g (${numeric(harvesterOutputPerSecond(state))} g per second)
     Wire: ${numeric(production.wire)} inches (${numeric(wireDroneOutputPerSecond(state))} inches per second)
 
-    Harvester Drones: ${numeric(earth.harvesterLevel)}
-    Wire Drones: ${numeric(earth.wireDroneLevel)}
+    ${earth.harvesterFlag && `Harvester Drones: ${numeric(earth.harvesterLevel)}`}
+    ${earth.wireDroneFlag && `Wire Drones: ${numeric(earth.wireDroneLevel)}`}
 
     ${actionsFor(actions, {
       buyHarvester: { cost: { amount: earth.harvesterCost, unit: 'clips' } },

@@ -1,5 +1,6 @@
 import createAiAgent from './vercel'
 import createFakeAgent from './fake'
+import createRepl from './human'
 import type { AgentOptions, AgentPrompt, AgentResponse, StrategicNotes, TickInteraction } from '@/types'
 
 export interface Player {
@@ -15,6 +16,7 @@ export interface AgentTeam {
 export default function createAgent(options: AgentOptions): AgentTeam {
   switch (options.type) {
     case 'fake': return createFakeAgent()
+    case 'human': return createRepl(options)
     default: return createAiAgent(options)
   }
 }

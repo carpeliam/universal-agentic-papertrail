@@ -14,6 +14,7 @@ const ALIASES: Record<string, LLMAgentSpec> = {
 
 export type CLIConfig = (
   | { type: 'fake' }
+  | { type: 'human' }
   | { type: 'llm'; agent: LLMAgentSpec; summarizer: LLMAgentSpec }
 ) & {
   waitForClient: boolean
@@ -60,11 +61,11 @@ export default function parseCLI(): CLIConfig {
 
   const opts = program.opts<{ agent: string, summarizer?: string, wait: boolean, reset: boolean, plan: boolean, verbose: number }>()
 
-  if (opts.agent === 'fake') {
+  if (['fake', 'human'].includes(opts.agent)) {
     if (opts.summarizer) {
-      program.error('--summarizer cannot be used with the fake agent')
+      program.error(`--summarizer cannot be used with the ${opts.agent} agent`)
     }
-    return { type: 'fake', waitForClient: opts.wait, reset: opts.reset, planMode: opts.plan, verbosity: opts.verbose }
+    return { type: opts.agent as 'fake' | 'human', waitForClient: opts.wait, reset: opts.reset, planMode: opts.plan, verbosity: opts.verbose }
   }
 
   if (opts.summarizer === 'fake') {

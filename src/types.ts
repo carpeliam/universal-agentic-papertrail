@@ -102,4 +102,4 @@ export type LLMAgentOptions = {
   planMode: boolean
   verbosity: number
 }
-export type AgentOptions = { type: 'fake'; verbosity: number } | ({ type: 'llm' } & LLMAgentOptions)
+export type AgentOptions = { type: 'human'; planMode: boolean } | { type: 'fake'; verbosity: number } | ({ type: 'llm' } & LLMAgentOptions)

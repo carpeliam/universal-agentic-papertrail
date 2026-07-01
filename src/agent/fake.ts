@@ -91,19 +91,19 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
     }
   }
 
-  const situationParts = [
+  const stanceParts = [
     `--- Generation (${transcript.length} ticks, phase: ${phase}) ${timestamp} ---`,
     `End state: ${endStateSummary}`,
     `Actions taken:\n${actionSummary}`,
   ]
-  if (newUnlocks.length)    situationParts.push(`New unlocks: ${newUnlocks.join(', ')}`)
-  if (corrections.length)   situationParts.push(`Changes: ${corrections.join(' | ')}`)
+  if (newUnlocks.length)    stanceParts.push(`New unlocks: ${newUnlocks.join(', ')}`)
+  if (corrections.length)   stanceParts.push(`Changes: ${corrections.join(' | ')}`)
 
-  const situation = situationParts.join('\n')
+  const stance = stanceParts.join('\n')
 
   console.clear()
   readline.cursorTo(process.stdout, 0, 0)
-  console.log(situation)
+  console.log(stance)
 
   writeLogSummary({
     timestamp,
@@ -118,7 +118,7 @@ async function summarize(priorNotes: StrategicNotes[], transcript: TickInteracti
     truths,
     openQuestions: [],
     corrections,
-    situation,
+    stance,
   }
 }
 

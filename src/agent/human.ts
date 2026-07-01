@@ -32,7 +32,7 @@ export default function createRepl({ planMode }: { planMode: boolean }): AgentTe
       }
     },
     async summarize() {
-      return { truths: [], openQuestions: [], corrections: [], situation: '' }
+      return { truths: [], openQuestions: [], corrections: [], stance: '' }
     }
   }
 }

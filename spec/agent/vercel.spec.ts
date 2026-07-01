@@ -45,7 +45,7 @@ const sampleStrategicNotes: StrategicNotes = {
   truths: [],
   openQuestions: [],
   corrections: [],
-  situation: 'Early game, exploring.',
+  stance: 'Early game, exploring.',
 }
 
 const gameState = createInitialGameState()

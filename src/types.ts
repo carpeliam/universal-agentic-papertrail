@@ -75,7 +75,7 @@ export const strategicNotesSchema = z.object({
   truths: z.array(z.object({ belief: z.string(), basis: z.string() })),
   openQuestions: z.array(z.string()),
   corrections: z.array(z.string()),
-  situation: z.string(),
+  stance: z.string(),
 })
 export type StrategicNotes = z.infer<typeof strategicNotesSchema>
 

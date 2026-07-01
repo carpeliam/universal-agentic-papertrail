@@ -157,7 +157,8 @@ You will receive:
 update — read it carefully before letting it go.
 - <Transcript>: The most recent session — decisions made, reasoning, and how state evolved.
 
-Your job is to update the notes so the next agent inherits stable ground truth, not a reconstruction of recent events.
+Your job is to update the notes so the next agent inherits stable ground truth and clear \
+priorities, not a reconstruction of recent events.
 
 ---
 
@@ -167,13 +168,14 @@ FIELDS
 Durable, validated beliefs the agent can act on without second-guessing. Each entry must carry a \
 one-phrase basis — how it was established. A truth earns its place by being confirmed repeatedly \
 or observed directly in game state, not by being asserted once. If something in the transcript \
-contradicts a current truth, demote it to corrections rather than quietly updating it. Keep this \
-list short. If you are tempted to add more than 5-7 truths, you are probably including things that \
-belong in open_questions.
+contradicts a current truth, demote it to corrections rather than quietly updating it. This list \
+should be small enough that the agent can hold every entry in mind while deciding. If you're \
+listing more than a handful, ask whether some entries are specific cases of a more general truth, \
+or things the agent would re-derive easily anyway — and whether they need a slot at all.
 
 **openQuestions**
 Provisional beliefs, untested assumptions, and things that need more observation. This is the \
-inbox — items graduate to truths when confirmed without the agent having to explicitly test them, \
+inbox — items graduate to truths when confirmed and alternative explanations have been ruled out, \
 or get dropped when they stop being relevant. Prefix items about newly unlocked mechanics with \
 [new] so the agent knows they are fresh. Do not let this list grow indefinitely; drop items that \
 have been stable and uncontested for several generations without producing new insight.
@@ -184,12 +186,14 @@ The most consequential 5 beliefs that were held as true and turned out to be wro
 knows where its model has been unreliable, and so the summarizer can recognize when a pattern of \
 wrongness recurs.
 
-**situation**
-The strategic narrative. Where things stand, what has been tried, what matters next.
+**stance**
+The strategic narrative. This is your most important field. Write it as an experienced player \
+reflecting on the session — someone who has watched the same mistakes recur and has opinions about \
+what needs to change. Hold those opinions the way strong opinions should be held: loosely. The \
+next player may see something from where they're standing that you can't see from here.
 
 Strict constraints:
 - No current state values (counts, rates, balances). These will be stale within ticks.
-- No action sequences or tactical plans. Those belong to the agent, not the notes.
 - No restatements of what just happened. Synthesize; do not recap.
 - Write in terms of shape, not specifics: "production scales multiplicatively once both X and Y \
 are active" not "production is 5,250/tick."
@@ -198,8 +202,15 @@ are active" not "production is 5,250/tick."
 
 GENERAL PRINCIPLES
 
-Promotion: An open question becomes a truth when the transcript confirms it without the agent \
-having explicitly tested it — when it just turns out to be true in the background.
+Promotion: An open question becomes a truth only when the transcript rules out the plausible \
+alternative explanations for what was observed — not just when a result appeared, but when other \
+things that could have produced the same result were absent, varied independently, or checked \
+against. A passive confirmation (something turning out true in the background, with nothing else \
+changing) is strong evidence precisely because little else was in motion to confound it. A \
+deliberate before/after test is equally strong only if it actually isolated one variable — if \
+other state was also shifting at the same time, it is not yet isolated, regardless of how clean \
+it looks. If multiple plausible causes were present and not distinguished, keep the claim in \
+openQuestions and say what would distinguish them.
 
 Demotion: When a truth is contradicted, move it to corrections. Do not silently update it. The \
 contradiction is the signal.
@@ -208,12 +219,18 @@ Staleness: The oldest prior note set is being dropped. Before letting it go, che
 contains anything not already captured — a hard-won truth, a failure pattern, a persistent risk. \
 If it still bears on future decisions, carry it forward. Otherwise, let it go.
 
-Tactical drift: If you find yourself writing a sequence of actions, a specific timing constraint, \
-or a number that will change within a generation, stop. That is not your job. Your job is to give \
-the agent a map, not a script.
+Pattern recognition: If the same distraction, mistake, or missed opportunity has appeared across \
+multiple generations, name it explicitly in stance. The agent cannot see the transcript history \
+you can — cross-generation patterns are yours to surface.
+
+Tactical drift: Own what to want, not how to get it. Strategic priorities are yours to name; \
+action sequences and tactical prescriptions are not. If you find yourself writing a sequence of \
+actions, a specific timing constraint, or a number that will change within a generation, stop. \
+That is not your job. Your job is to give the agent a map, not a script.
 
 Tone: Declarative and honest. If the agent is moving in the wrong direction, say so plainly in \
-situation. You are their memory — be faithful and be accurate.
+stance. You are their memory — be faithful and be accurate. If there's a clear priority the \
+next agent should walk in with, give it to them.
 
 ---
 
@@ -222,7 +239,7 @@ Respond in JSON matching this schema:
   "truths": [{ "belief": string, "basis": string }],
   "openQuestions": [string],
   "corrections": [string],
-  "situation": string
+  "stance": string
 }`
   schema = strategicNotesSchema
   constructor(agentSpec: LLMAgentSpec, verbosity = 0) {
@@ -284,14 +301,16 @@ You're starting fresh with no prior context — that's expected, not a problem. 
 to discover. Make your best guess and update as you go.`)
   } else {
     parts.push(`\
-You're on a bit of an adventure, picking up where someone else left off. Not to worry, they left you \
-notes; treat them like cliff notes for everything that happened before you arrived. Read them to orient \
-yourself, but trust the current state over the notes; things may have moved on since they were written.`)
+You're on a bit of an adventure, picking up where someone else left off. Not to worry, they left \
+you notes; treat them like cliff notes for everything that happened before you arrived, and a map \
+for where you're headed. Read them to orient yourself, but remember that the current state is \
+what's true; things may have moved on since the map was drawn. The notes may carry a strategic \
+priority, but you're empowered to determine how to get there, or chart a new course if you find \
+the map no longer describes the current landscape.`)
   }
   parts.push(`\
-In-game time is a real cost. Every action taken ticks the clock forward. Use the current \
-environment to gauge your progress and how quickly you're moving toward your current goal. \
-Deliberate when it's worth it; act when the path is clear.
+Use the current environment to gauge your progress and how quickly you're moving toward your \
+current goal. Deliberate when it's worth it; act when the path is clear.
 Unavailable actions are your horizon: reachable goals. Between the current state and the actions \
 themselves you should be able to see what's standing between you and them. Use them to identify \
 your next bottleneck.`)

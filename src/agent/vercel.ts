@@ -1,4 +1,4 @@
-import { APICallError, generateText, GenerateTextResult, NoObjectGeneratedError, NoOutputGeneratedError, Output, SystemModelMessage, type FlexibleSchema, type LanguageModel, type ModelMessage, type UserContent } from "ai"
+import { APICallError, generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output, type FlexibleSchema, type LanguageModel, type ModelMessage, type ProviderMetadata, type SystemModelMessage, type UserContent } from "ai"
 import { z } from "zod"
 import { anthropic, type AnthropicLanguageModelOptions } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
@@ -40,7 +40,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
           output: Output.object({ schema }),
           messages,
         })
-        const { output, usage, reasoningText, response: { messages: responseMessages } } = result
+        const { output, usage, finalStep: { providerMetadata, reasoningText, response: { messages: responseMessages } } } = result
         this.messages.push(...responseMessages)
 
         this.log(LOG_DEBUG, 'response', ...responseMessages)
@@ -48,7 +48,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
         this.log(LOG_INFO, JSON.stringify(output))
         if (result.warnings?.length) this.log(LOG_INFO, result.warnings)
 
-        events.emit('turnExecuted', { action: output, reasoning: reasoningText, ...extractCompletionMetadata(result) })
+        events.emit('turnExecuted', { action: output, reasoning: reasoningText, ...extractCompletionMetadata(providerMetadata) })
         return result
       } catch (err) {
         console.warn(err)
@@ -71,7 +71,7 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
         if (NoOutputGeneratedError.isInstance(err)) {
           messages = [
             ...messages,
-            { role: 'user', content: 'Your previous response was empty. Please reevaluate and try again.' }
+            { role: 'user', content: 'Your previous response was not received properly. Please collect yourself, focus, reevaluate and try providing a smaller response that adheres to the schema.' }
           ]
           this.log(LOG_INFO, 'agent returned no output:', err.cause)
           continue
@@ -119,7 +119,7 @@ class Player extends Communicator<typeof agentActionSchema> {
     const { actions, state } = prompt
     this.pruneOldMessageData()
     this.log(LOG_INFO, 'prompting with available actions:', JSON.stringify(actions.available))
-    const { output, usage, reasoningText } = await this.submit([
+    const { output, usage, finalStep: { reasoningText } } = await this.submit([
       { type: 'text', text: this.actionInstructions },
       { type: 'text', text: displayPrompt(prompt) },
     ], this.schemaFor(actions.available))
@@ -271,7 +271,7 @@ function is504(err: APICallError): boolean {
 interface CompletionMetadata {
   cost?: number
 }
-function extractCompletionMetadata({ providerMetadata }: GenerateTextResult<any, any>): CompletionMetadata {
+function extractCompletionMetadata(providerMetadata: ProviderMetadata | undefined): CompletionMetadata {
   let cost: number | undefined
   if (providerMetadata?.openrouter) {
     const usage = providerMetadata.openrouter.usage as OpenRouterUsageAccounting

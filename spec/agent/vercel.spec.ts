@@ -24,6 +24,16 @@ vi.mock('ai', () => ({
       return e instanceof NoObjectGeneratedError
     }
   },
+  NoOutputGeneratedError: class NoOutputGeneratedError extends Error {
+    readonly cause?: Error
+    constructor({ message, cause, }: { message?: string; cause?: Error }) {
+      super(message)
+      this.cause = cause
+    }
+    static isInstance(e: unknown): e is NoObjectGeneratedError {
+      return e instanceof NoObjectGeneratedError
+    }
+  },
   APICallError: class APICallError extends Error {
     readonly isRetryable: boolean
     readonly data?: unknown
@@ -64,16 +74,18 @@ function mockGenerateTextOutput(output: object, reasoningText = 'this seems like
   return {
     output,
     usage: { inputTokens: 0 },
-    reasoningText,
-    response: {
-      messages: [{
-        role: 'assistant', content: [
-          { type: 'reasoning', text: reasoningText },
-          { type: 'text', text: JSON.stringify(output) },
-        ],
-      }],
+    finalStep: {
+      reasoningText,
+      response: {
+        messages: [{
+          role: 'assistant', content: [
+            { type: 'reasoning', text: reasoningText },
+            { type: 'text', text: JSON.stringify(output) },
+          ],
+        }],
+      },
     },
-  } as GenerateTextResult<{}, any>
+  } as GenerateTextResult<{}, any, any>
 }
 
 beforeEach(() => {

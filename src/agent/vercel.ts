@@ -1,12 +1,12 @@
 import { APICallError, generateText, NoObjectGeneratedError, NoOutputGeneratedError, Output, type FlexibleSchema, type LanguageModel, type ModelMessage, type ProviderMetadata, type SystemModelMessage, type UserContent } from "ai"
-import { z } from "zod"
+import { z, ZodError } from "zod"
 import { anthropic, type AnthropicLanguageModelOptions } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { createOllama } from 'ollama-ai-provider-v2'
 import { openrouter, type OpenRouterUsageAccounting } from '@openrouter/ai-sdk-provider'
 import { events } from "@/events"
-import { agentActionSchema, strategicNotesSchema, type AgentPrompt, type AgentResponse, type LLMAgentOptions, type LLMAgentSpec, type PromptAction, type StrategicNotes, type TickInteraction } from "@/types"
+import { agentActionSchema, strategicNotesSchema, type AgentActions, type AgentPrompt, type AgentResponse, type LLMAgentOptions, type LLMAgentSpec, type StrategicNotes, type TickInteraction } from "@/types"
 import type { AgentTeam } from "."
 import { displayPrompt } from "./markdown-adapter"
 
@@ -59,11 +59,16 @@ abstract class Communicator<TSchema extends FlexibleSchema> {
           await delay(125 * Math.pow(2, 2 * i))
           continue
         }
-        if (NoObjectGeneratedError.isInstance(err) && err.cause instanceof Error) {
+        if (NoObjectGeneratedError.isInstance(err)) {
+          const cause = rootCause(err)
+          let issue: string | undefined
+          if (cause instanceof ZodError) {
+            issue = cause.issues.map(i => i.message).join(' ')
+          }
           messages = [
             ...messages,
             { role: 'assistant', content: err.text ?? '' },
-            { role: 'user', content: `Your previous response did not match the required schema. Error: ${err.cause.message}\nPlease try again.` }
+            { role: 'user', content: `Your previous response did not match the required schema. ${issue}\nPlease try again.` }
           ]
           this.log(LOG_INFO, 'schema validation failed, retrying:', err.cause)
           continue
@@ -122,16 +127,20 @@ class Player extends Communicator<typeof agentActionSchema> {
     const { output, usage, finalStep: { reasoningText } } = await this.submit([
       { type: 'text', text: this.actionInstructions },
       { type: 'text', text: displayPrompt(prompt) },
-    ], this.schemaFor(actions.available))
+    ], this.schemaFor(actions))
     this.inputTokenCount += usage.inputTokens ?? 0
     return { plan: (this.isMultiTurn) ? output : [output], reasoning: reasoningText }
   }
   canContinue() { return this.inputTokenCount < MAX_INPUT_TOKENS_PER_GENERATION }
-  private schemaFor(actions: PromptAction[]): FlexibleSchema {
-    const availableTypes = new Set(actions.map(a => a.type))
+  private schemaFor(actions: AgentActions): FlexibleSchema {
+    const availableTypes = new Set(actions.available.map(a => a.type))
+    const allTypes = actions.unavailable.reduce((set, a) => set.add(a.type), new Set(availableTypes))
     const actionSchemas = this.schema.options
     return (this.isMultiTurn)
-      ? z.array(z.union(actionSchemas))
+      ? z.array(z.union(actionSchemas.filter(o => allTypes.has(o.shape.type.value)))).refine(
+        (plan) => plan.length <= 25,
+        `You submitted a plan which exceeds the 25-action limit. Submit a shorter plan; a handful of actions is enough to make progress and reassess next turn.`,
+      )
       : z.union(actionSchemas.filter(o => availableTypes.has(o.shape.type.value)))
   }
   private pruneOldMessageData(keepRecent = 4) {
@@ -264,6 +273,10 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+function rootCause(error: unknown): unknown {
+  return (error && typeof error === 'object' && 'cause' in error && error.cause) ? rootCause(error.cause) : error
+}
+
 function is504(err: APICallError): boolean {
   return typeof err.data === 'object' && err.data !== null && 'code' in err.data && (err.data as { code: unknown }).code === 504
 }
@@ -319,7 +332,9 @@ your next bottleneck.`)
 Actions execute in sequence, each against the environment left by the previous one. An action \
 that's unavailable now may be valid later in the sequence, and one that's available now may not \
 be by the time it executes. Invalid actions don't halt the sequence; they're skipped, but still \
-consume time.`)
+consume time.
+Keep plans relatively short (max 25 actions) so you can reassess after seeing the result, rather \
+than committing many actions (especially repeats of one action) at once.`)
   }
   parts.push(`\
 At the beginning of each turn, observe the connection between your previous action and your \

@@ -138,16 +138,27 @@ describe('player', () => {
       expect(response).toEqual(expect.objectContaining({ plan: [sampleAgentAction] }))
     })
 
-    it('sends a schema matching an array of all possible actions', async () => {
+    it('sends a schema matching an array of all visible actions', async () => {
       const player = createPlayer([])
 
       await player.play({ state: gameState, actions: agentActions })
 
       const schema = vi.mocked(Output.object).mock.calls[0][0].schema as z.ZodType
       expect(schema.safeParse([{ type: 'makeClip' }]).success).toBe(true)
-      expect(schema.safeParse([{ type: 'buyAutoClipper' }]).success).toBe(true)
-      expect(schema.safeParse([{ type: 'makeClip' }, { type: 'buyAutoClipper' }, { type: 'wait', turns: 1 }]).success).toBe(true)
+      expect(schema.safeParse([{ type: 'buyMarketing' }]).success).toBe(true)
+      expect(schema.safeParse([{ type: 'buyAutoClipper' }]).success).toBe(false)
+      expect(schema.safeParse([{ type: 'makeClip' }, { type: 'buyMarketing' }, { type: 'wait', turns: 1 }]).success).toBe(true)
       expect(schema.safeParse({ type: 'makeClip' }).success).toBe(false)
+    })
+
+    it('caps plan length at 25', async () => {
+      const player = createPlayer([])
+
+      await player.play({ state: gameState, actions: agentActions })
+
+      const schema = vi.mocked(Output.object).mock.calls[0][0].schema as z.ZodType
+      expect(schema.safeParse(Array(25).fill({ type: 'lowerPrice' })).success).toBe(true)
+      expect(schema.safeParse(Array(26).fill({ type: 'lowerPrice' })).success).toBe(false)
     })
   })
 

@@ -11,6 +11,10 @@ export type Cost = z.infer<typeof costSchema>
 const investmentRiskModeSchema = z.enum(['low', 'med', 'hi']) as z.ZodType<InvestmentRiskMode>
 const strategySelectionSchema = z.enum(['NONE', 'RANDOM', 'A100', 'B100', 'GREEDY', 'GENEROUS', 'MINIMAX', 'TIT_FOR_TAT', 'BEAT_LAST']) as z.ZodType<StrategySelection>
 const projectIdSchema = z.string() as z.ZodType<ProjectId>
+
+const droneQuantitySchema = z.union([z.literal(1), z.literal(10), z.literal(100), z.literal(1000)])
+const farmAndBatteryQuantitySchema = z.union([z.literal(1), z.literal(10), z.literal(100)])
+
 const probeTrustTargetSchema = z.enum(['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone', 'combat'])
 export type ProbeTrustTarget = z.infer<typeof probeTrustTargetSchema>
 
@@ -18,10 +22,10 @@ export const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('makeClip') }),
   z.object({ type: z.literal('buyWire') }),
   z.object({ type: z.literal('buyFactory') }),
-  z.object({ type: z.literal('buyHarvester') }),
-  z.object({ type: z.literal('buyWireDrone') }),
-  z.object({ type: z.literal('buyFarm') }),
-  z.object({ type: z.literal('buyBattery') }),
+  z.object({ type: z.literal('buyHarvester'), quantity: droneQuantitySchema }),
+  z.object({ type: z.literal('buyWireDrone'), quantity: droneQuantitySchema }),
+  z.object({ type: z.literal('buyFarm'), quantity: farmAndBatteryQuantitySchema }),
+  z.object({ type: z.literal('buyBattery'), quantity: farmAndBatteryQuantitySchema }),
   z.object({ type: z.literal('launchProbe') }),
   z.object({ type: z.literal('increaseProbeTrust') }),
   z.object({ type: z.literal('increaseMaxTrust') }),
@@ -42,6 +46,7 @@ export const agentActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('investWithdraw') }),
   z.object({ type: z.literal('investUpgrade') }),
   z.object({ type: z.literal('chooseInvestmentRisk'), mode: investmentRiskModeSchema }),
+  z.object({ type: z.literal('createNewTournament') }),
   z.object({ type: z.literal('runTournament') }),
   z.object({ type: z.literal('chooseStrategy'), strategy: strategySelectionSchema }),
   z.object({ type: z.literal('toggleAutoTourney') }),

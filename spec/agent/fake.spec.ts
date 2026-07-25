@@ -14,11 +14,11 @@ describe('fake agent', () => {
   const lowerPrice: AgentAction = { type: 'lowerPrice' }
   const raisePrice: AgentAction = { type: 'raisePrice' }
   const runTournament: AgentAction = { type: 'runTournament' }
-  const buyFarm: AgentAction = { type: 'buyFarm' }
-  const buyHarvester: AgentAction = { type: 'buyHarvester' }
-  const buyWireDrone: AgentAction = { type: 'buyWireDrone' }
+  const buyFarm: AgentAction = { type: 'buyFarm', quantity: 1 }
+  const buyHarvester: AgentAction = { type: 'buyHarvester', quantity: 1 }
+  const buyWireDrone: AgentAction = { type: 'buyWireDrone', quantity: 1 }
   const buyFactory: AgentAction = { type: 'buyFactory' }
-  const buyBattery: AgentAction = { type: 'buyBattery' }
+  const buyBattery: AgentAction = { type: 'buyBattery', quantity: 1 }
   const wait: AgentAction = { type: 'wait', turns: 1 }
   const dummy = { type: 'dummy' } as unknown as AgentAction
 

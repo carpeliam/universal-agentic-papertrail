@@ -39,10 +39,10 @@ export function displayPrompt(prompt: AgentPrompt): string {
     Clock: ${clock(prompt.state.elapsedMs)}
 
     ## Available Actions
-    ${prompt.actions.available.map(a => markAvailable(JSON.stringify(a)))}
+    ${prompt.actions.available.map(a => `- ${JSON.stringify(a)}`)}
 
     ## Unavailable Actions
-    ${prompt.actions.unavailable.map(a => markUnavailable(JSON.stringify(a)))}`
+    ${prompt.actions.unavailable.map(a => `- ${JSON.stringify(a)} [unavailable]`)}`
 }
 
 function business({ state, actions }: AgentPrompt) {
@@ -122,7 +122,7 @@ const MIN_CHIP_VALUE = -1
 const MAX_CHIP_VALUE = 1
 const THRESHOLD_PERCENT = 0.85
 function quantumCompute({ state, actions }: AgentPrompt) {
-  if (!state.projects.project50) return
+  if (!state.projects.project50.completed) return
   const { compute } = state
 
   const describeChipState = ({ value, waveSeed }: { value: number, waveSeed: number }) => {
@@ -181,7 +181,7 @@ function strategy({ state, actions }: AgentPrompt) {
 
   const { lastPayoffMatrix } = strategy
 
-  const actionTypes: ActionTypeData[] = ['chooseStrategy', { runTournament: { cost: { amount: strategy.tourneyCost, unit: 'ops' } } }]
+  const actionTypes: ActionTypeData[] = ['chooseStrategy', { createNewTournament: { cost: { amount: strategy.tourneyCost, unit: 'ops' } } }, 'runTournament']
   if (strategy.autoTourneyEnabled) {
     actionTypes.push('toggleAutoTourney')
   }
@@ -339,8 +339,8 @@ function projects({ actions }: AgentPrompt) {
     ## Projects
 
     ${[
-      ...availableProjects.map(p => `✓ **${p.title}** (${displayCost(p.cost as Cost | Cost[])})`),
-      ...unavailableProjects.map(p => `✗ **${p.title}** (${displayCost(p.cost as Cost | Cost[])})`),
+      ...availableProjects.map(p => `- **${p.title}** (${displayCost(p.cost as Cost | Cost[])})`),
+      ...unavailableProjects.map(p => `- **${p.title}** (${displayCost(p.cost as Cost | Cost[])}, unavailable)`),
     ]}`
 }
 
@@ -372,9 +372,6 @@ function displayCost(cost: Cost | Cost[]) {
   return Array.isArray(cost) ? cost.map(singleCost).join(', ') : singleCost(cost)
 }
 
-function markAvailable(action: string) { return `✓ ${action}` }
-function markUnavailable(action: string) { return `✗ ${action}` }
-
 function actionsFor({ available, unavailable }: AgentActions, ...typesAndCosts: ActionTypeData[]) {
   const types = typesAndCosts.flatMap(t => (typeof t === 'string' ? t : Object.keys(t) as ActionType[]))
   const annotations = typesAndCosts.reduce(
@@ -382,33 +379,47 @@ function actionsFor({ available, unavailable }: AgentActions, ...typesAndCosts: 
     {},
   )
 
-  const actionLabel = ({ type, ...rest }: PromptAction) => {
-    if (Object.keys(rest).length === 0) {
-      return type
-    }
-    const entries = Object.entries(rest)
-    const description = (entries.length === 1)
-      ? entries[0][1]
-      : entries.map(pair => pair.join('=')).join(',')
-    return `${type}(${description})`
+  const describeGroup = (type: ActionType, actions: PromptAction[]): string => {
+    const label = (actions.length === 1)
+      ? type
+      : `${type}(${describeGroupAttributes(actions)})`
+    return withAnnotation(label, annotations[type])
   }
 
-  const actionLabelWithAnnotation = (action: PromptAction) => {
-    const label = actionLabel(action)
-    const annotation = annotations[action.type]
-    if (!annotation) return label
-
-    if ('cost' in annotation) return `${label} [cost: ${displayCost(annotation.cost)}]`
-    if ('refund' in annotation) return `${label} [refund: ${displayCost(annotation.refund)}]`
-    return label
+  const describeActions = (actions: PromptAction[]): string[] => {
+    const grouped = Object.entries(Object.groupBy(actions, a => a.type)) as [ActionType, PromptAction[]][]
+    return grouped.map(([type, actions]) => describeGroup(type, actions))
   }
 
-  const actions = [
-    ...available.filter(a => types.includes(a.type)).map(a => markAvailable(actionLabelWithAnnotation(a))),
-    ...unavailable.filter(a => types.includes(a.type)).map(a => markUnavailable(actionLabelWithAnnotation(a))),
+  const relevantAvailable = available.filter(a => types.includes(a.type))
+  const relevantUnavailable = unavailable.filter(a => types.includes(a.type))
+
+  const lines = [
+    ...describeActions(relevantAvailable),
+    ...describeActions(relevantUnavailable).map(line => `${line} [unavailable]`),
   ]
 
-  return (actions.length) ? ['Actions:', ...actions].join('\n') : undefined
+  return lines.length ? ['Actions:', ...lines.map(line => `- ${line}`)].join('\n') : undefined
+}
+
+function describeGroupAttributes(actions: PromptAction[]): string {
+  const attributesByKey = actions.reduce((accumulator, { type, ...attrs }) => {
+    Object.entries(attrs).forEach(([key, val]) => {
+      accumulator[key] = [...(accumulator[key] ?? []), val]
+    })
+    return accumulator
+  }, {} as Record<string, any[]>)
+
+  return Object.entries(attributesByKey)
+    .map(([key, vals]) => `${key}=${vals.join('|')}`)
+    .join(',')
+}
+
+function withAnnotation(label: string, annotation: ActionEffect | undefined): string {
+  if (!annotation) return label
+  if ('cost' in annotation) return `${label} [cost: ${displayCost(annotation.cost)}]`
+  if ('refund' in annotation) return `${label} [refund: ${displayCost(annotation.refund)}]`
+  return label
 }
 
 function md(strings: TemplateStringsArray, ...values: unknown[]) {

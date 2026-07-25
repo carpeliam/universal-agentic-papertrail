@@ -1,4 +1,4 @@
-import { getWireBatchCost, getActiveProjects, canAllocateTrust, canRunTournament, type GameAction, type GameState, type InvestmentRiskMode } from "paperclips-remake"
+import { getWireBatchCost, getActiveProjects, canAllocateTrust, canCreateTournament, canRunTournament, type GameAction, type GameState, type InvestmentRiskMode, getBatteryCost, getDroneCost, getFarmCost } from "paperclips-remake"
 import type { AgentAction, AgentActions, AgentPrompt, Description, PromptAction, ProbeTrustTarget } from "./types"
 import { areAutoClippersVisible, areMegaClippersVisible } from "./domain"
 
@@ -29,7 +29,7 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: () => [{ type: 'buyWire' }],
   },
   {
-    isVisible: (s) => !!s.projects.project50 && s.compute.qChips.some(c => c.active),
+    isVisible: (s) => s.projects.project50.completed && s.compute.qChips.some(c => c.active),
     canActivate: () => true,
     actions: () => [{ type: 'quantumCompute' }]
   },
@@ -58,41 +58,41 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     canActivate: (s) => s.earth.factoryLevel > 0,
     actions: () => [{ type: 'disassembleFactories' }],
   },
-  {
+  ...(([1, 10, 100, 1000] as const).map((quantity): ActionDescriptor => ({
     isVisible: (s) => s.earth.harvesterFlag && !s.earth.spaceFlag,
-    canActivate: (s) => s.production.unusedClips >= s.earth.harvesterCost,
-    actions: () => [{ type: 'buyHarvester' }],
-  },
+    canActivate: (s) => s.production.unusedClips >= getDroneCost(s.earth.harvesterLevel, quantity),
+    actions: () => [{ type: 'buyHarvester', quantity }],
+  }))),
   {
     isVisible: (s) => s.earth.harvesterFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.earth.harvesterLevel > 0,
     actions: () => [{ type: 'disassembleHarvesters' }],
   },
-  {
+  ...(([1, 10, 100, 1000] as const).map((quantity): ActionDescriptor => ({
     isVisible: (s) => s.earth.wireDroneFlag && !s.earth.spaceFlag,
-    canActivate: (s) => s.production.unusedClips >= s.earth.wireDroneCost,
-    actions: () => [{ type: 'buyWireDrone' }],
-  },
+    canActivate: (s) => s.production.unusedClips >= getDroneCost(s.earth.wireDroneLevel, quantity),
+    actions: () => [{ type: 'buyWireDrone', quantity }],
+  }))),
   {
     isVisible: (s) => s.earth.wireDroneFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.earth.wireDroneLevel > 0,
     actions: () => [{ type: 'disassembleWireDrones' }],
   },
-  {
+  ...(([1, 10, 100] as const).map((quantity): ActionDescriptor => ({
     isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
-    canActivate: (s) => s.production.unusedClips >= s.earth.farmCost,
-    actions: () => [{ type: 'buyFarm' }],
-  },
+    canActivate: (s) => s.production.unusedClips >= getFarmCost(s.earth.farmLevel, quantity),
+    actions: () => [{ type: 'buyFarm', quantity }],
+  }))),
   {
     isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.earth.farmLevel > 0,
     actions: () => [{ type: 'disassembleFarms' }],
   },
-  {
+  ...(([1, 10, 100] as const).map((quantity): ActionDescriptor => ({
     isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
-    canActivate: (s) => s.production.unusedClips >= s.earth.batteryCost,
-    actions: () => [{ type: 'buyBattery' }],
-  },
+    canActivate: (s) => s.production.unusedClips >= getBatteryCost(s.earth.batteryLevel, quantity),
+    actions: () => [{ type: 'buyBattery', quantity }],
+  }))),
   {
     isVisible: (s) => s.earth.powerGridFlag && !s.earth.spaceFlag,
     canActivate: (s) => s.earth.batteryLevel > 0,
@@ -110,7 +110,7 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
   },
   {
     isVisible: (s) => s.earth.spaceFlag,
-    canActivate: (s) => s.projects.project121 && s.space.honor >= s.space.maxTrustCost,
+    canActivate: (s) => s.projects.project121.completed && s.space.honor >= s.space.maxTrustCost,
     actions: () => [{ type: 'increaseMaxTrust' }],
   },
   {
@@ -122,12 +122,12 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     ),
   },
   {
-    isVisible: (s) => s.earth.spaceFlag && s.projects.project131,
-    canActivate: (s) => s.strategy.yomi >= s.space.probeTrustCost && s.space.probeUsedTrust < s.space.probeTrust && s.projects.project131,
+    isVisible: (s) => s.earth.spaceFlag && s.projects.project131.completed,
+    canActivate: (s) => s.strategy.yomi >= s.space.probeTrustCost && s.space.probeUsedTrust < s.space.probeTrust && s.projects.project131.completed,
     actions: (s) => [{ type: 'allocateProbeTrust' as const, target: 'combat' }],
   },
   ...(['speed', 'exploration', 'self_replication', 'hazard_remediation', 'factory', 'harvester', 'wire_drone', 'combat'] as ProbeTrustTarget[]).map((target): ActionDescriptor => ({
-    isVisible: (s) => s.earth.spaceFlag && (target !== 'combat' || s.projects.project131),
+    isVisible: (s) => s.earth.spaceFlag && (target !== 'combat' || s.projects.project131.completed),
     canActivate: (s) => {
       const currentTargetTrust = {
         speed: s.space.probeSpeed,
@@ -139,7 +139,7 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
         wire_drone: s.space.probeWire,
         combat: s.space.probeCombat,
       }[target]
-      return s.earth.spaceFlag && currentTargetTrust > 0 && (target !== 'combat' || s.projects.project131)
+      return s.earth.spaceFlag && currentTargetTrust > 0 && (target !== 'combat' || s.projects.project131.completed)
     },
     actions: (s) => [{ type: 'deallocateProbeTrust' as const, target }],
   })),
@@ -187,6 +187,11 @@ const ACTION_REGISTRY: ActionDescriptor[] = [
     actions: (s) => ['NONE' as const, ...s.strategy.strategies]
       .filter(strategy => strategy !== s.strategy.selectedStrategy)
       .map(strategy => ({ type: 'chooseStrategy' as const, strategy })),
+  },
+  {
+    isVisible: (s) => s.strategy.unlocked,
+    canActivate: (s) => canCreateTournament(s),
+    actions: () => [{ type: 'createNewTournament' }],
   },
   {
     isVisible: (s) => s.strategy.unlocked,

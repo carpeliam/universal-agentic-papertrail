@@ -9,9 +9,9 @@ export function areAutoClippersVisible(state: GameState) {
 }
 
 export function areMegaClippersVisible(state: GameState) {
-  return state.earth.humanFlag && state.projects.project22
+  return state.earth.humanFlag && state.projects.project22.completed
 }
 
 export function isCombatEnabled(state: GameState) {
-  return state.projects.project131
+  return state.projects.project131.completed
 }

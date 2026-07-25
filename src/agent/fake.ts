@@ -19,10 +19,10 @@ function writeLogSummary(entry: GenerationLogEntry): void {
 }
 
 function determinePhase(state: GameState) {
-  if (state.projects.project46) {
+  if (state.projects.project46.completed) {
     return 'space'
   }
-  if (state.projects.project35) {
+  if (state.projects.project35.completed) {
     return 'expansion'
   }
   if (state.compute.unlocked) {
@@ -186,11 +186,11 @@ export default function createFakeAgent(): AgentTeam {
         }
       },
       project50: { urgent: true, shouldExecute: () => true },
-      project51: { urgent: true, shouldExecute: s => !s.projects.project51 },
+      project51: { urgent: true, shouldExecute: s => !s.projects.project51.completed },
       project1: { urgent: false, shouldExecute: s => s.compute.processors > 5 },
-      project4: { urgent: false, shouldExecute: s => s.projects.project34 },
-      project5: { urgent: false, shouldExecute: s => s.projects.project34 },
-      project16: { urgent: false, shouldExecute: s => s.projects.project34 },
+      project4: { urgent: false, shouldExecute: s => s.projects.project34.completed },
+      project5: { urgent: false, shouldExecute: s => s.projects.project34.completed },
+      project16: { urgent: false, shouldExecute: s => s.projects.project34.completed },
       project22: { urgent: false, shouldExecute: () => true },
       project23: { urgent: false, shouldExecute: () => true },
       project24: { urgent: false, shouldExecute: () => true },
@@ -229,7 +229,7 @@ export default function createFakeAgent(): AgentTeam {
       project129: { urgent: false, shouldExecute: () => true },
       project131: { urgent: true, shouldExecute: () => true },
       project132: { urgent: true, shouldExecute: () => true },
-      project133: { urgent: true, shouldExecute: s => s.projects.project132 && s.space.maxTrust < 50 },
+      project133: { urgent: true, shouldExecute: s => s.projects.project132.completed && s.space.maxTrust < 50 },
       project134: { urgent: false, shouldExecute: () => true },
     }
 
@@ -243,8 +243,8 @@ export default function createFakeAgent(): AgentTeam {
     const buyWire = find('buyWire')
     const investWithdraw = find('investWithdraw')
 
-    const needToKeepMoneyInStocksForProject37 = haveSeenProject['project37'] && !state.projects.project37 && !findProject('project37')
-    const needToKeepMoneyInStocksForProject40b = haveSeenProject['project40b'] && state.projects.project37 && (state.investment.bankroll ?? 0) < ((Math.pow(2, 100 - (state.compute.trust ?? 100)) - 1) * 1e6)
+    const needToKeepMoneyInStocksForProject37 = haveSeenProject['project37'] && !state.projects.project37.completed && !findProject('project37')
+    const needToKeepMoneyInStocksForProject40b = haveSeenProject['project40b'] && state.projects.project37.completed && (state.investment.bankroll ?? 0) < ((Math.pow(2, 100 - (state.compute.trust ?? 100)) - 1) * 1e6)
     const needToKeepMoneyInStocks = needToKeepMoneyInStocksForProject37 || needToKeepMoneyInStocksForProject40b
 
     // ─── URGENT PROJECTS (before resource safety) ────────────────────────────
@@ -338,7 +338,7 @@ export default function createFakeAgent(): AgentTeam {
       if (state.investment.unlocked) {
         if (
           investWithdraw &&
-          !state.projects.project40 &&
+          !state.projects.project40.completed &&
           state.investment.bankroll > 0 &&
           state.production.funds + state.investment.bankroll >= 500_000
         ) {
@@ -354,7 +354,7 @@ export default function createFakeAgent(): AgentTeam {
         }
         if (
           investWithdraw &&
-          !state.projects.project38 &&
+          !state.projects.project38.completed &&
           state.investment.bankroll > 0 &&
           state.production.funds + state.investment.bankroll >= 10_000_000
         ) {
@@ -369,7 +369,7 @@ export default function createFakeAgent(): AgentTeam {
         }
       }
 
-      const wireNeedMultiplier = (state.production.megaClippers > 0 ? 1.5 : 1) * (!state.projects.project26 ? 1.15 : 1)
+      const wireNeedMultiplier = (state.production.megaClippers > 0 ? 1.5 : 1) * (!state.projects.project26.completed ? 1.15 : 1)
       if (buyWire && state.production.wire < state.economy.demand * wireNeedMultiplier) {
         return { plan: [buyWire], reasoning: 'Wire buffer low — topping up.' }
       }
@@ -512,7 +512,7 @@ export default function createFakeAgent(): AgentTeam {
 
       if (wireTrendingDown) {
         if (powerConstrained(1)) return buyFarmIfAffordable
-        if (state.projects.project126 && earth.wireDroneLevel / earth.harvesterLevel > 1.49) {
+        if (state.projects.project126.completed && earth.wireDroneLevel / earth.harvesterLevel > 1.49) {
           if (buyHarvester) return { plan: [buyHarvester], reasoning: 'Need more harvesters to stay organized' }
         } else {
           if (buyWireDrone) return { plan: [buyWireDrone], reasoning: 'wire trending down — buying wire drone.' }
@@ -549,7 +549,7 @@ export default function createFakeAgent(): AgentTeam {
       const deallocateProbeTrust = find('deallocateProbeTrust') as Extract<AgentAction, { type: 'deallocateProbeTrust' }>
       const launchProbe = find('launchProbe')
 
-      if (!state.projects.project129) {
+      if (!state.projects.project129.completed) {
         if (allocateProbeTrust) {
           if (space.probeHaz < 6) {
             return { plan: [{ ...allocateProbeTrust, target: 'hazard_remediation' }], reasoning: 'need hazard protection' }
@@ -609,12 +609,12 @@ export default function createFakeAgent(): AgentTeam {
       const bottleneck = detectBottleneck()
 
       const initialNecessaryValues: Partial<Record<ProbeTrustTarget, [number, boolean]>> = {
-        speed: [space.probeSpeed, earth.availableMatter === 0 || earth.acquiredMatter === 0 || space.probeSpeed < (state.projects.project120 ? 2 : 1)],
+        speed: [space.probeSpeed, earth.availableMatter === 0 || earth.acquiredMatter === 0 || space.probeSpeed < (state.projects.project120.completed ? 2 : 1)],
         exploration: [space.probeNav, earth.availableMatter === 0 || earth.acquiredMatter === 0 || space.probeNav < 1 || bottleneck === 'need_exploration'],
         factory: [space.probeFac, earth.factoryLevel === 0 || bottleneck === 'need_factory'],
         harvester: [space.probeHarv, earth.harvesterLevel === 0 || bottleneck === 'need_harvester'],
         wire_drone: [space.probeWire, earth.wireDroneLevel === 0 || bottleneck === 'need_wire_drone'],
-        combat: [space.probeCombat!, state.projects.project131 && space.probeCombat < 5],
+        combat: [space.probeCombat!, state.projects.project131.completed && space.probeCombat < 5],
       }
       for (const [target, [probeVal, needsAllocation]] of Object.entries(initialNecessaryValues) as [ProbeTrustTarget, [number, boolean]][]) {
         if (needsAllocation && probeVal === 0) {
@@ -646,11 +646,11 @@ export default function createFakeAgent(): AgentTeam {
 
         return ticksToCompleteWithMoreNav < ticksToCompleteWithMoreProbes
       }
-      if (state.projects.project131 && space.probeCombat < 5) {
+      if (state.projects.project131.completed && space.probeCombat < 5) {
         const reallocate = reallocateTrust('self_replication', 'combat')
         if (reallocate) return reallocate
       }
-      if (state.projects.project120 && space.probeSpeed < 2) {
+      if (state.projects.project120.completed && space.probeSpeed < 2) {
         const reallocate = reallocateTrust('self_replication', 'speed')
         if (reallocate) return reallocate
       }

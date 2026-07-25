@@ -30,7 +30,7 @@ export function withAutoClippersEnabled(): DeepPartial<GameState> {
 }
 
 export function withMegaClippersEnabled(): DeepPartial<GameState> {
-  return { projects: { project22: true } }
+  return { projects: { project22: { triggered: true, completed: true } } }
 }
 
 export function withComputeUnlocked(): DeepPartial<GameState> {
@@ -50,7 +50,7 @@ export function withSwarmComputing(): DeepPartial<GameState> {
   return patch(withComputeUnlocked(), {
     compute: { swarmFlag: true },
     earth: { powMod: 1 },
-    projects: { project126: true },
+    projects: { project126: { triggered: true, completed: true } },
   })
 }
 
@@ -67,13 +67,13 @@ export function withIndustryPhase(): DeepPartial<GameState> {
 export function withStrategicModeling(): DeepPartial<GameState> {
   return patch(withComputeUnlocked(), {
     strategy: { unlocked: true },
-    projects: { project20: true },
+    projects: { project20: { triggered: true, completed: true } },
   })
 }
 
 export function withQuantumComputing(): DeepPartial<GameState> {
   return patch(withComputeUnlocked(), {
-    projects: { project50: true },
+    projects: { project50: { triggered: true, completed: true } },
   })
 }
 
@@ -85,14 +85,14 @@ export function withPhotonicChips(chipCount = 1): DeepPartial<GameState> {
 
 export function withFullMonopolyVisible(): DeepPartial<GameState> {
   return {
-    projects: { project37: true },
+    projects: { project37: { triggered: true, completed: true } },
   }
 }
 
 export function withHypnoDronesAvailable(): DeepPartial<GameState> {
   return patch(withComputeUnlocked(), {
     compute: { operations: 70_000 },
-    projects: { project34: true },
+    projects: { project34: { triggered: true, completed: true } },
   })
 }
 
@@ -100,35 +100,35 @@ export function withExpansion(): DeepPartial<GameState> {
   return patch(withComputeUnlocked(), {
     phase: 'expansion',
     earth: { phase: 'postHuman', humanFlag: false },
-    projects: { project35: true },
+    projects: { project35: { triggered: true, completed: true } },
   })
 }
 
 export function withTothTubuleEnfolding(): DeepPartial<GameState> {
   return patch(withExpansion(), {
     earth: { tothFlag: true },
-    projects: { project18: true },
+    projects: { project18: { triggered: true, completed: true } },
   })
 }
 
 export function withWireProduction(): DeepPartial<GameState> {
   return patch(withPowerGrid(), {
     earth: { wireProductionFlag: true },
-    projects: { project41: true },
+    projects: { project41: { triggered: true, completed: true } },
   })
 }
 
 export function withHarvesting(): DeepPartial<GameState> {
   return patch(withWireProduction(), {
     earth: { harvesterFlag: true },
-    projects: { project43: true },
+    projects: { project43: { triggered: true, completed: true } },
   })
 }
 
 export function withWireDroneCapability(): DeepPartial<GameState> {
   return patch(withWireProduction(), {
     earth: { wireDroneFlag: true },
-    projects: { project44: true },
+    projects: { project44: { triggered: true, completed: true } },
   })
 }
 
@@ -138,14 +138,14 @@ export function withFactoryCapability(): DeepPartial<GameState> {
     withWireDroneCapability(),
   ].reduce<DeepPartial<GameState>>(patch, {
     earth: { factoryFlag: true },
-    projects: { project45: true },
+    projects: { project45: { triggered: true, completed: true } },
   })
 }
 
 export function withPowerGrid(): DeepPartial<GameState> {
   return patch(withTothTubuleEnfolding(), {
     earth: { powerGridFlag: true },
-    projects: { project127: true },
+    projects: { project127: { triggered: true, completed: true } },
   })
 }
 
@@ -156,12 +156,12 @@ export function withSpacePhase(): DeepPartial<GameState> {
       powMod: 1,
       farmLevel: 1,
     },
-    projects: { project35: true },
+    projects: { project35: { triggered: true, completed: true } },
   })
 }
 
 export function withCombat(): DeepPartial<GameState> {
-  return patch(withSpacePhase(), { projects: { project131: true } })
+  return patch(withSpacePhase(), { projects: { project131: { triggered: true, completed: true } } })
 }
 
 export function withBattle(overrides: Partial<SpaceBattle> = {}): DeepPartial<GameState> {

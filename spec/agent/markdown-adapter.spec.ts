@@ -60,10 +60,10 @@ describe('displayPrompt', () => {
         expect(prompt).not.toContain(' buyHarvester')
         expect(prompt).not.toContain(' buyWireDrone')
         expect(prompt).not.toContain(' buyFactory')
-        expect(prompt).toContain('✓ raisePrice')
-        expect(prompt).toContain('✓ lowerPrice')
-        expect(prompt).toContain('✗ buyWire [cost: $15.00]')
-        expect(prompt).toContain('✗ buyMarketing [cost: $100.00]')
+        expect(prompt).toContain('- raisePrice')
+        expect(prompt).toContain('- lowerPrice')
+        expect(prompt).toContain('- buyWire [cost: $15.00] [unavailable]')
+        expect(prompt).toContain('- buyMarketing [cost: $100.00] [unavailable]')
       })
 
       it('hides auto/megaClipper information when not available', () => {
@@ -159,8 +159,7 @@ describe('displayPrompt', () => {
       expect(prompt).toContain(' investDeposit')
       expect(prompt).toContain(' investWithdraw')
       expect(prompt).toContain(' investUpgrade [cost: 39,255 yomi]')
-      expect(prompt).toContain(' chooseInvestmentRisk(low)')
-      expect(prompt).toContain(' chooseInvestmentRisk(med)')
+      expect(prompt).toContain(' chooseInvestmentRisk(mode=low|med)')
     })
 
     it('displays Strategic Modeling when available', () => {
@@ -179,10 +178,9 @@ describe('displayPrompt', () => {
       expect(prompt).toContain('Current Strategy: A100')
       expect(prompt).toContain('Yomi: 4,425,889')
       expect(prompt).toContain('Tournament Level: 658')
-      expect(prompt).toContain(' runTournament [cost: 16,000 ops]')
-      expect(prompt).toContain(' chooseStrategy(NONE)')
-      expect(prompt).toContain(' chooseStrategy(RANDOM)')
-      expect(prompt).toContain(' chooseStrategy(B100)')
+      expect(prompt).toContain('- createNewTournament [cost: 16,000 ops]')
+      expect(prompt).toContain('- runTournament')
+      expect(prompt).toContain('- chooseStrategy(strategy=NONE|RANDOM|B100)')
       expect(prompt).not.toContain('Payoff Matrix:')
       expect(prompt).not.toContain(' toggleAutoTourney')
 
@@ -320,11 +318,11 @@ describe('displayPrompt', () => {
           },
         },
       )
-      expect(prompt).toContain(' buyHarvester [cost: 79,702,252 clips]')
-      expect(prompt).toContain(' buyWireDrone [cost: 4,756,828 clips]')
+      expect(prompt).toContain(' buyHarvester(quantity=1|10|100|1000) [cost: 79,702,252 clips]')
+      expect(prompt).toContain(' buyWireDrone(quantity=1|10|100|1000) [cost: 4,756,828 clips]')
       expect(prompt).toContain(' buyFactory [cost: 100,000,000 clips]')
-      expect(prompt).toContain(' buyFarm [cost: 212,029,890 clips]')
-      expect(prompt).toContain(' buyBattery [cost: 2,568,937,919 clips]')
+      expect(prompt).toContain(' buyFarm(quantity=1|10|100) [cost: 212,029,890 clips]')
+      expect(prompt).toContain(' buyBattery(quantity=1|10|100) [cost: 2,568,937,919 clips]')
       expect(prompt).toContain(' disassembleHarvesters [refund: 3,673,706,209,901 clips]')
       expect(prompt).toContain(' disassembleWireDrones [refund: 16,855,372,847,154 clips]')
       expect(prompt).toContain(' disassembleFactories [refund: 586,100,000,000 clips]')
@@ -548,8 +546,8 @@ describe('displayPrompt', () => {
       const prompt = displayPromptWithState(withComputeUnlocked(), withHypnoDronesAvailable(), withFullMonopolyVisible())
 
       expect(prompt).toContain('## Projects')
-      expect(prompt).toContain('✓ **HypnoDrones** (70,000 ops)')
-      expect(prompt).toContain('✗ **Full Monopoly** ($10,000,000.00, 3,000 yomi)')
+      expect(prompt).toContain('- **HypnoDrones** (70,000 ops)')
+      expect(prompt).toContain('- **Full Monopoly** ($10,000,000.00, 3,000 yomi, unavailable)')
     })
   })
 

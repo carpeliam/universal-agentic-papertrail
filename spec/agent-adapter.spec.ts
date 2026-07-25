@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { createInitialGameState, type GamePhase, type GameState } from "paperclips-remake"
+import { createInitialGameState, getBatteryCost, getDroneCost, getFarmCost, INITIAL_BATTERY_COST, INITIAL_FARM_COST, INITIAL_HARVESTER_COST, INITIAL_WIRE_DRONE_COST, type GamePhase, type GameState } from "paperclips-remake"
 import { actionDuration, getActions, toGameActions } from "@/agent-adapter"
-import { applyGameState, withComputeUnlocked, withExpansion, withHarvesting, withIndustryPhase, withInvestingUnlocked, withMegaClippersEnabled, withSpacePhase, withStrategicModeling } from "./helper"
+import { applyGameState, withComputeUnlocked, withExpansion, withFactoryCapability, withHarvesting, withIndustryPhase, withInvestingUnlocked, withMegaClippersEnabled, withSpacePhase, withStrategicModeling, withWireDroneCapability } from "./helper"
 
 describe('getActions', () => {
   it('always includes waiting as a posibility', () => {
@@ -176,14 +176,14 @@ describe('getActions', () => {
     expect(actions.available.map(a => a.type)).not.toContain('runTournament')
   })
 
-  it('shows runTournament as available when strategy is unlocked and ops are sufficient', () => {
+  it('shows createNewTournament as available when strategy is unlocked and ops are sufficient', () => {
     const state = applyGameState(withStrategicModeling(), {
       strategy: { tourneyCost: 1000 },
       compute: { operations: 1000 },
     })
     const actions = getActions(state)
-    expect(actions.available.map(a => a.type)).toContain('runTournament')
-    expect(actions.unavailable.map(a => a.type)).not.toContain('runTournament')
+    expect(actions.available.map(a => a.type)).toContain('createNewTournament')
+    expect(actions.unavailable.map(a => a.type)).not.toContain('createNewTournament')
   })
 
   it('shows no buyMegaClipper action when project22 is not completed', () => {
@@ -227,30 +227,109 @@ describe('getActions', () => {
     expect(allActionTypes).not.toContain('buyHarvester')
   })
 
-  it('shows buyHarvester as unavailable in expansion phase when clips are insufficient', () => {
-    const state = applyGameState(withHarvesting(), {
-      production: { unusedClips: 0 },
-    })
-    const actions = getActions(state)
-    expect(actions.unavailable.map(a => a.type)).toContain('buyHarvester')
-    expect(actions.available.map(a => a.type)).not.toContain('buyHarvester')
-  })
-
-  it('shows buyHarvester as available in expansion phase when clips are sufficient', () => {
-    const initialGameState = createInitialGameState()
-    const state = applyGameState(withHarvesting(), {
-      production: { unusedClips: initialGameState.earth.harvesterCost + 1 },
-    })
-    const actions = getActions(state)
-    expect(actions.available.map(a => a.type)).toContain('buyHarvester')
-    expect(actions.unavailable.map(a => a.type)).not.toContain('buyHarvester')
-  })
-
   it('does not show buyHarvester in space phase', () => {
     const state = applyGameState(withHarvesting(), withSpacePhase())
     const actions = getActions(state)
     const allActionTypes = [...actions.available, ...actions.unavailable].map(a => a.type)
     expect(allActionTypes).not.toContain('buyHarvester')
+  })
+
+  it.each(['buyHarvester', 'buyWireDrone'])('gates %s purchase quantities by their real bulk cost', (type) => {
+    const cost1 = (type === 'buyHarvester') ? INITIAL_HARVESTER_COST : INITIAL_WIRE_DRONE_COST
+    const cost10 = getDroneCost(0, 10)
+    const cost100 = getDroneCost(0, 100)
+    const cost1000 = getDroneCost(0, 1000)
+
+    let state = applyGameState(withHarvesting(), withWireDroneCapability(), {
+      production: { unusedClips: cost1 - 1 },
+      earth: { harvesterLevel: 0, wireDroneLevel: 0 },
+    })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 1 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 100 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 1000 })
+
+    state = applyGameState(state, { production: { unusedClips: cost1 } })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 1 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 100 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 1000 })
+
+    state = applyGameState(state, { production: { unusedClips: cost10 } })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 1 })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 100 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 1000 })
+
+    state = applyGameState(state, { production: { unusedClips: cost100 } })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 1 })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 10 })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 100 })
+    expect(getActions(state).unavailable).toContainEqual({ type, quantity: 1000 })
+
+    state = applyGameState(state, { production: { unusedClips: cost1000 } })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 1 })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 10 })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 100 })
+    expect(getActions(state).available).toContainEqual({ type, quantity: 1000 })
+  })
+
+  it('gates farm purchase quantities by their real bulk cost', () => {
+    const cost1 = INITIAL_FARM_COST
+    const cost10 = getFarmCost(0, 10)
+    const cost100 = getFarmCost(0, 100)
+
+    let state = applyGameState(withFactoryCapability(), {
+      production: { unusedClips: cost1 - 1 },
+      earth: { farmLevel: 0 },
+    })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyFarm', quantity: 1 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyFarm', quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyFarm', quantity: 100 })
+
+    state = applyGameState(state, { production: { unusedClips: cost1 } })
+    expect(getActions(state).available).toContainEqual({ type: 'buyFarm', quantity: 1 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyFarm', quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyFarm', quantity: 100 })
+
+    state = applyGameState(state, { production: { unusedClips: cost10 } })
+    expect(getActions(state).available).toContainEqual({ type: 'buyFarm', quantity: 1 })
+    expect(getActions(state).available).toContainEqual({ type: 'buyFarm', quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyFarm', quantity: 100 })
+
+    state = applyGameState(state, { production: { unusedClips: cost100 } })
+    expect(getActions(state).available).toContainEqual({ type: 'buyFarm', quantity: 1 })
+    expect(getActions(state).available).toContainEqual({ type: 'buyFarm', quantity: 10 })
+    expect(getActions(state).available).toContainEqual({ type: 'buyFarm', quantity: 100 })
+  })
+
+  it('gates battery purchase quantities by their real bulk cost', () => {
+    const cost1 = INITIAL_BATTERY_COST
+    const cost10 = getBatteryCost(0, 10)
+    const cost100 = getBatteryCost(0, 100)
+
+    let state = applyGameState(withFactoryCapability(), {
+      production: { unusedClips: cost1 - 1 },
+      earth: { batteryLevel: 0 },
+    })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyBattery', quantity: 1 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyBattery', quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyBattery', quantity: 100 })
+
+    state = applyGameState(state, { production: { unusedClips: cost1 } })
+    expect(getActions(state).available).toContainEqual({ type: 'buyBattery', quantity: 1 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyBattery', quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyBattery', quantity: 100 })
+
+    state = applyGameState(state, { production: { unusedClips: cost10 } })
+    expect(getActions(state).available).toContainEqual({ type: 'buyBattery', quantity: 1 })
+    expect(getActions(state).available).toContainEqual({ type: 'buyBattery', quantity: 10 })
+    expect(getActions(state).unavailable).toContainEqual({ type: 'buyBattery', quantity: 100 })
+
+    state = applyGameState(state, { production: { unusedClips: cost100 } })
+    expect(getActions(state).available).toContainEqual({ type: 'buyBattery', quantity: 1 })
+    expect(getActions(state).available).toContainEqual({ type: 'buyBattery', quantity: 10 })
+    expect(getActions(state).available).toContainEqual({ type: 'buyBattery', quantity: 100 })
   })
 
   it('classifies deallocation actions as available or unavailable depending on their amounts', () => {
@@ -265,7 +344,7 @@ describe('getActions', () => {
         probeCombat: 1,
       },
       projects: {
-        project131: true,
+        project131: { triggered: true, completed: true },
       },
     })
     const actions = getActions(spaceState)
